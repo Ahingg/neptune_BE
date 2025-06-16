@@ -1,0 +1,39 @@
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Build output
+bin/
+build/
+*.out
+*.exe
+*.test
+
+# Logs
+*.log
+
+# Live reload tools (like air, gin, fresh, realize)
+tmp/
+tmp.*
+.air/
+.air.toml
+.air.conf
+.air.conf.*
+
+# Go modules
+vendor/
+*.mod
+*.sum
+
+# Code coverage
+*.coverprofile
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+
+# Env files
+.env
