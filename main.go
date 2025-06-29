@@ -5,10 +5,8 @@ import (
 	"neptune/backend/models/user"
 	"os"
 
-	"neptune/backend/handlers"
 	"neptune/backend/models"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -36,56 +34,6 @@ func main() {
 
 	// Initialize Gin router
 	r := gin.Default()
-
-	// CORS middleware
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-	}))
-
-	// Routes
-	api := r.Group("/api")
-	{
-		// Auth routes
-		auth := api.Group("/auth")
-		{
-			auth.POST("/login", handlers.HandleLogin)
-		}
-
-		// Protected routes
-		protected := api.Group("")
-		protected.Use(handlers.AuthMiddleware())
-		{
-			// Case routes
-			cases := protected.Group("/cases")
-			{
-				cases.GET("/", handlers.GetCases)
-				cases.POST("/", handlers.CreateCase)
-				cases.GET("/:id", handlers.GetCase)
-				cases.PUT("/:id", handlers.UpdateCase)
-				cases.DELETE("/:id", handlers.DeleteCase)
-				cases.POST("/:id/test-cases", handlers.AddTestCase)
-				cases.DELETE("/:id/test-cases/:testCaseId", handlers.DeleteTestCase)
-			}
-
-			// Submission routes
-			submissions := protected.Group("/submissions")
-			{
-				submissions.POST("/", handlers.CreateSubmission)
-				submissions.GET("/", handlers.GetSubmissions)
-				submissions.GET("/:id", handlers.GetSubmission)
-			}
-
-			// Leaderboard routes
-			leaderboard := protected.Group("/leaderboard")
-			{
-				leaderboard.GET("/class/:classId", handlers.GetClassLeaderboard)
-			}
-		}
-	}
 
 	// Start server
 	port := os.Getenv("PORT")
