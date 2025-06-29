@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"neptune/backend/models/user"
 	"os"
 
 	"neptune/backend/handlers"
@@ -31,7 +32,7 @@ func main() {
 	}
 
 	// Auto migrate schemas
-	db.AutoMigrate(&models.User{}, &models.Case{}, &models.TestCase{}, &models.Submission{})
+	db.AutoMigrate(&user.User{}, &models.Case{}, &models.TestCase{}, &models.Submission{})
 
 	// Initialize Gin router
 	r := gin.Default()
