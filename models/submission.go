@@ -59,47 +59,47 @@ func UpdateSubmissionStatus(db *gorm.DB, id uint, status string, errorMsg string
 	}).Error
 }
 
-func GetClassLeaderboard(db *gorm.DB, classID string) ([]struct {
-	UserID    uint   `json:"user_id"`
-	Username  string `json:"username"`
-	Solved    int64  `json:"solved"`
-	Submitted int64  `json:"submitted"`
-}, error) {
-	var results []struct {
-		UserID    uint   `json:"user_id"`
-		Username  string `json:"username"`
-		Solved    int64  `json:"solved"`
-		Submitted int64  `json:"submitted"`
-	}
-
-	// Get all users in the class
-	var users []User
-	if err := db.Where("class = ?", classID).Find(&users).Error; err != nil {
-		return nil, err
-	}
-
-	// Get submissions for each user
-	for _, user := range users {
-		var solved, submitted int64
-		if err := db.Model(&Submission{}).Where("user_id = ? AND status = ?", user.ID, "Accepted").Count(&solved).Error; err != nil {
-			return nil, err
-		}
-		if err := db.Model(&Submission{}).Where("user_id = ?", user.ID).Count(&submitted).Error; err != nil {
-			return nil, err
-		}
-
-		results = append(results, struct {
-			UserID    uint   `json:"user_id"`
-			Username  string `json:"username"`
-			Solved    int64  `json:"solved"`
-			Submitted int64  `json:"submitted"`
-		}{
-			UserID:    user.ID,
-			Username:  user.Username,
-			Solved:    solved,
-			Submitted: submitted,
-		})
-	}
-
-	return results, nil
-}
+//func GetClassLeaderboard(db *gorm.DB, classID string) ([]struct {
+//	UserID    uint   `json:"user_id"`
+//	Username  string `json:"username"`
+//	Solved    int64  `json:"solved"`
+//	Submitted int64  `json:"submitted"`
+//}, error) {
+//	var results []struct {
+//		UserID    uint   `json:"user_id"`
+//		Username  string `json:"username"`
+//		Solved    int64  `json:"solved"`
+//		Submitted int64  `json:"submitted"`
+//	}
+//
+//	// Get all users in the class
+//	var users []user.User
+//	if err := db.Where("class = ?", classID).Find(&users).Error; err != nil {
+//		return nil, err
+//	}
+//
+//	// Get submissions for each user
+//	for _, user := range users {
+//		var solved, submitted int64
+//		if err := db.Model(&Submission{}).Where("user_id = ? AND status = ?", user.ID, "Accepted").Count(&solved).Error; err != nil {
+//			return nil, err
+//		}
+//		if err := db.Model(&Submission{}).Where("user_id = ?", user.ID).Count(&submitted).Error; err != nil {
+//			return nil, err
+//		}
+//
+//		results = append(results, struct {
+//			UserID    uint   `json:"user_id"`
+//			Username  string `json:"username"`
+//			Solved    int64  `json:"solved"`
+//			Submitted int64  `json:"submitted"`
+//		}{
+//			UserID:    user.ID,
+//			Username:  user.Username,
+//			Solved:    solved,
+//			Submitted: submitted,
+//		})
+//	}
+//
+//	return results, nil
+//}
