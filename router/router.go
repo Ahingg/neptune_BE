@@ -3,9 +3,10 @@ package router
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	userHand "neptune/backend/handlers/user"
 )
 
-func NewRouter() *gin.Engine {
+func NewRouter(userHandler *userHand.UserHandler) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
@@ -15,6 +16,17 @@ func NewRouter() *gin.Engine {
 		AllowCredentials: true,
 		MaxAge:           12 * 60 * 60, // 12 hours
 	}))
+
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "pong",
+		})
+	})
+
+	authGroup := r.Group("/auth")
+	{
+		authGroup.POST("/login", userHandler.LoginHandler)
+	}
 
 	return r
 }
