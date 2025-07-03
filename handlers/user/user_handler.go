@@ -1,10 +1,15 @@
 package user
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"neptune/backend/pkg/requests"
+	"neptune/backend/pkg/responses"
 	"neptune/backend/services/user"
 	"net/http"
+	"os"
+	"regexp"
+	"time"
 )
 
 type UserHandler struct {
@@ -15,18 +20,46 @@ func NewUserHandler(service user.UserService) *UserHandler {
 	return &UserHandler{service: service}
 }
 
+var nimRegex = regexp.MustCompile(`^\d{10}$`)
+
 func (handler *UserHandler) LoginHandler(c *gin.Context) {
-	var req requests.LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
-	}
+	var (
+		req requests.LoginRequest
+		err error
+	)
 
-	resp, err := handler.service.Login(&req)
+	err = c.ShouldBindJSON(&req)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err})
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	var (
+		loginResp   *responses.LoginResponse
+		accessToken string
+		expires     time.Time
+	)
+	if nimRegex.MatchString(req.Username) {
+		loginResp, accessToken, expires, err = handler.service.LoginStudent(c.Request.Context(), &req)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": fmt.Sprintf("Invalid credentials %s", err)})
+			return
+		}
+	} else {
+		loginResp, accessToken, expires, err = handler.service.LoginAssistant(c.Request.Context(), &req)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+			return
+		}
+	}
+
+	accessTokenMaxAge := int(time.Until(expires).Seconds())
+	if accessTokenMaxAge <= 0 {
+		accessTokenMaxAge = 3600
+	}
+
+	domain := os.Getenv("FRONTEND_URL")
+	secure := true
+	c.SetCookie("token", accessToken, accessTokenMaxAge, "/", domain, secure, true)
+	c.JSON(http.StatusOK, gin.H{"user": loginResp})
 }
