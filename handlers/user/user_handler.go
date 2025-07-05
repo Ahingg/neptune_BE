@@ -59,7 +59,39 @@ func (handler *UserHandler) LoginHandler(c *gin.Context) {
 	}
 
 	domain := os.Getenv("FRONTEND_URL")
-	secure := true
+
+	// set secure to false on prod
+	secure := false
 	c.SetCookie("token", accessToken, accessTokenMaxAge, "/", domain, secure, true)
 	c.JSON(http.StatusOK, gin.H{"user": loginResp})
+}
+
+func (handler *UserHandler) MeHandler(c *gin.Context) {
+	username := c.GetString("username")
+	userID := c.GetString("user_id")
+	role := c.GetString("role")
+	name := c.GetString("name")
+	fmt.Println(username, userID, role, name)
+	if username == "" || userID == "" || role == "" || name == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Missing user information"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user": gin.H{
+			"id":       userID,
+			"username": username,
+			"name":     name,
+			"role":     role,
+		},
+	})
+}
+
+func (handler *UserHandler) LogOutHandler(c *gin.Context) {
+	domain := os.Getenv("FRONTEND_URL")
+
+	// set secure to false on prod
+	secure := false
+	c.SetCookie("token", "", -1, "/", domain, secure, true) // Set cookie with empty value and negative max age to delete it
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }

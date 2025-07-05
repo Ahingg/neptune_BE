@@ -4,6 +4,8 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	userHand "neptune/backend/handlers/user"
+	"neptune/backend/models/user"
+	"neptune/backend/pkg/middleware"
 )
 
 func NewRouter(userHandler *userHand.UserHandler) *gin.Engine {
@@ -23,9 +25,30 @@ func NewRouter(userHandler *userHand.UserHandler) *gin.Engine {
 		})
 	})
 
+	// Public auth routes
 	authGroup := r.Group("/auth")
 	{
 		authGroup.POST("/login", userHandler.LoginHandler)
+		authGroup.POST("logout", middleware.RequireAuth(), userHandler.LogOutHandler)
+		authGroup.GET("/me", middleware.RequireAuth(), userHandler.MeHandler)
+	}
+
+	adminGroup := r.Group("/admin")
+	adminGroup.Use(middleware.RequireAuth(), middleware.RequireRole(user.RoleAdmin))
+	{
+		// TODO: Implement admin-specific routes
+	}
+
+	assistantGroup := r.Group("/assistant")
+	assistantGroup.Use(middleware.RequireAuth(), middleware.RequireRole(user.RoleAssistant))
+	{
+		// TODO: Implement assistant-specific routes
+	}
+
+	studentGroup := r.Group("/student")
+	studentGroup.Use(middleware.RequireAuth(), middleware.RequireRole(user.RoleStudent))
+	{
+		// TODO: Implement student-specific routes
 	}
 
 	return r
