@@ -7,9 +7,12 @@ import (
 	"neptune/backend/messier/auth/log_on"
 	"neptune/backend/messier/auth/me"
 	model "neptune/backend/models/user"
+	"neptune/backend/pkg/jwt"
 	"neptune/backend/pkg/requests"
 	"neptune/backend/pkg/responses"
 	userRepo "neptune/backend/repositories/user"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -48,13 +51,28 @@ func (s *userService) LoginAssistant(ctx context.Context, req *requests.LoginReq
 	}
 
 	// Di titik ini berarti udah berhasil dapetin data user, tinggal disesuain aja datanya trus balikin
+	if s.isUserAdmin(meResp.Username) {
+		meResp.Role = model.RoleAdmin
+	}
+
+	// Save data dari usernya ke db, biar ga buang buang waktu kalau nanti mau ngeseed.
+	selfToken, err := jwt.CreateJWT(
+		meResp.UserID,
+		meResp.Username,
+		meResp.Name,
+		meResp.Role,
+		time.Now().Add(time.Duration(logOnResp.ExpiresIn)*time.Second),
+	)
+
+	// later save messier token to the db.
+
 	return &responses.LoginResponse{
 			UserID:   meResp.UserID,
 			Username: meResp.Username,
 			Name:     meResp.Name,
 			Role:     meResp.Role.String(),
 		},
-		logOnResp.AccessToken,
+		selfToken,
 		time.Now().Add(time.Duration(logOnResp.ExpiresIn) * time.Second),
 		nil
 }
@@ -68,6 +86,14 @@ func (s *userService) LoginStudent(ctx context.Context, req *requests.LoginReque
 		return nil, "", time.Time{}, fmt.Errorf("failed to log on student: %w", err)
 	}
 
+	selfToken, err := jwt.CreateJWT(
+		logOnResp.Student.UserID.String(),
+		logOnResp.Student.UserName,
+		logOnResp.Student.Name,
+		model.RoleStudent,
+		logOnResp.Token.Expires,
+	)
+
 	// Di titik ini berarti udah berhasil dapetin data user, tinggal disesuain aja datanya trus balikin
 	return &responses.LoginResponse{
 			UserID:   logOnResp.Student.UserID.String(),
@@ -75,7 +101,7 @@ func (s *userService) LoginStudent(ctx context.Context, req *requests.LoginReque
 			Name:     logOnResp.Student.Name,
 			Role:     model.RoleStudent.String(),
 		},
-		logOnResp.Token.Token,
+		selfToken,
 		logOnResp.Token.Expires,
 		nil
 }
@@ -90,4 +116,8 @@ func (s *userService) GetUserProfile(ctx context.Context, userID uuid.UUID) (*mo
 		return nil, fmt.Errorf("user not found")
 	}
 	return u, nil
+}
+
+func (s *userService) isUserAdmin(username string) bool {
+	return strings.EqualFold(username, os.Getenv("ADMIN_USERNAME"))
 }
