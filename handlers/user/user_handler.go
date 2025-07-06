@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"neptune/backend/pkg/requests"
 	"neptune/backend/pkg/responses"
+	"neptune/backend/pkg/utils"
 	"neptune/backend/services/user"
 	"net/http"
 	"os"
@@ -61,7 +62,7 @@ func (handler *UserHandler) LoginHandler(c *gin.Context) {
 	domain := os.Getenv("FRONTEND_URL")
 
 	// set secure to false on prod
-	secure := false
+	secure := os.Getenv("APP_ENV") == "production"
 	c.SetCookie("token", accessToken, accessTokenMaxAge, "/", domain, secure, true)
 	c.JSON(http.StatusOK, gin.H{"user": loginResp})
 }
@@ -90,8 +91,15 @@ func (handler *UserHandler) MeHandler(c *gin.Context) {
 func (handler *UserHandler) LogOutHandler(c *gin.Context) {
 	domain := os.Getenv("FRONTEND_URL")
 
+	// delete user external token if exists
+	err := handler.service.DeleteUserAccessToken(c.Request.Context(), c.GetString("user_id"))
+	if err != nil {
+		//c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed on Log Out: %s", err)})
+		utils.CheckPanic(fmt.Errorf("failed deleting access token: %s", err))
+	}
+
 	// set secure to false on prod
-	secure := false
+	secure := os.Getenv("APP_ENV") == "production"
 	c.SetCookie("token", "", -1, "/", domain, secure, true) // Set cookie with empty value and negative max age to delete it
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }

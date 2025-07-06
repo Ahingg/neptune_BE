@@ -1,6 +1,7 @@
 package main
 
 import (
+	semester "neptune/backend/models/semester"
 	"neptune/backend/models/user"
 	"neptune/backend/pkg/container"
 	"neptune/backend/pkg/database"
@@ -33,12 +34,18 @@ func main() {
 		&user.User{},
 		&models.Case{},
 		&models.TestCase{},
-		&models.Submission{}); err != nil {
+		&models.Submission{},
+		&semester.Semester{},
+		&user.MessierToken{},
+	); err != nil {
 		utils.CheckPanic(err)
 	}
 
 	handlerContainer := container.NewHandlerContainer(db)
-	r := router.NewRouter(&(handlerContainer.UserHandler))
+	r := router.NewRouter(
+		&(handlerContainer.UserHandler),
+		&(handlerContainer.InternalSemesterHandler),
+	)
 
 	port := os.Getenv("PORT")
 	if port == "" {
