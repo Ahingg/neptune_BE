@@ -13,4 +13,5 @@ type UserService interface {
 	LoginAssistant(ctx context.Context, req *requests.LoginRequest) (*responses.LoginResponse, string, time.Time, error)
 	LoginStudent(ctx context.Context, req *requests.LoginRequest) (*responses.LoginResponse, string, time.Time, error)
 	GetUserProfile(ctx context.Context, userID uuid.UUID) (*model.User, error)
+	DeleteUserAccessToken(ctx context.Context, userID string) error
 }

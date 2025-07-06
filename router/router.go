@@ -3,12 +3,13 @@ package router
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"neptune/backend/handlers/semester"
 	userHand "neptune/backend/handlers/user"
 	"neptune/backend/models/user"
 	"neptune/backend/pkg/middleware"
 )
 
-func NewRouter(userHandler *userHand.UserHandler) *gin.Engine {
+func NewRouter(userHandler *userHand.UserHandler, semesterHandler *semester.SemesterHandler) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
@@ -36,7 +37,8 @@ func NewRouter(userHandler *userHand.UserHandler) *gin.Engine {
 	adminGroup := r.Group("/admin")
 	adminGroup.Use(middleware.RequireAuth(), middleware.RequireRole(user.RoleAdmin))
 	{
-		// TODO: Implement admin-specific routes
+		adminGroup.POST("/sync-semester", semesterHandler.SyncSemestersHandler)
+		adminGroup.GET("/semesters", semesterHandler.GetSemestersHandler)
 	}
 
 	assistantGroup := r.Group("/assistant")
