@@ -10,6 +10,7 @@ import (
 	"neptune/backend/pkg/jwt"
 	"neptune/backend/pkg/requests"
 	"neptune/backend/pkg/responses"
+	messierTokenRepo "neptune/backend/repositories/messier_token"
 	userRepo "neptune/backend/repositories/user"
 	"os"
 	"strings"
@@ -17,9 +18,10 @@ import (
 )
 
 type userService struct {
-	userRepo    userRepo.UserRepository
-	labLogOnSvc log_on.LogOnService // Service to handle Lab API authentication
-	labMeSvc    me.MeService        // Service to handle Lab API user profile
+	userRepo         userRepo.UserRepository
+	labLogOnSvc      log_on.LogOnService                     // Service to handle Lab API authentication
+	labMeSvc         me.MeService                            // Service to handle Lab API user profile
+	messierTokenRepo messierTokenRepo.MessierTokenRepository // Repository for Messier tokens
 }
 
 // NewUserService creates a new instance of UserService
@@ -27,11 +29,13 @@ func NewUserService(
 	userRepo userRepo.UserRepository,
 	labLogOnSvc log_on.LogOnService,
 	labMeSvc me.MeService,
+	messierTokenRepository messierTokenRepo.MessierTokenRepository, // Assuming you have a MessierTokenRepository
 ) UserService {
 	return &userService{
-		userRepo:    userRepo,
-		labLogOnSvc: labLogOnSvc,
-		labMeSvc:    labMeSvc,
+		userRepo:         userRepo,
+		labLogOnSvc:      labLogOnSvc,
+		labMeSvc:         labMeSvc,
+		messierTokenRepo: messierTokenRepository,
 	}
 }
 
@@ -64,7 +68,20 @@ func (s *userService) LoginAssistant(ctx context.Context, req *requests.LoginReq
 		time.Now().Add(time.Duration(logOnResp.ExpiresIn)*time.Second),
 	)
 
+	if err != nil {
+		return nil, "", time.Time{}, fmt.Errorf("failed to create JWT: %w", err)
+	}
+
 	// later save messier token to the db.
+	err = s.messierTokenRepo.Save(ctx, &model.MessierToken{
+		UserID:              meResp.UserID,
+		MessierAccessToken:  logOnResp.AccessToken,
+		MessierTokenExpires: time.Now().Add(time.Duration(logOnResp.ExpiresIn) * time.Second),
+	})
+
+	if err != nil {
+		return nil, "", time.Time{}, fmt.Errorf("failed to save messier token: %w", err)
+	}
 
 	return &responses.LoginResponse{
 			UserID:   meResp.UserID,
@@ -94,6 +111,16 @@ func (s *userService) LoginStudent(ctx context.Context, req *requests.LoginReque
 		logOnResp.Token.Expires,
 	)
 
+	err = s.messierTokenRepo.Save(ctx, &model.MessierToken{
+		UserID:              logOnResp.Student.UserID.String(),
+		MessierAccessToken:  logOnResp.Token.Token,
+		MessierTokenExpires: logOnResp.Token.Expires,
+	})
+
+	if err != nil {
+		return nil, "", time.Time{}, fmt.Errorf("failed to save messier token: %w", err)
+	}
+
 	// Di titik ini berarti udah berhasil dapetin data user, tinggal disesuain aja datanya trus balikin
 	return &responses.LoginResponse{
 			UserID:   logOnResp.Student.UserID.String(),
@@ -116,6 +143,15 @@ func (s *userService) GetUserProfile(ctx context.Context, userID uuid.UUID) (*mo
 		return nil, fmt.Errorf("user not found")
 	}
 	return u, nil
+}
+
+func (s *userService) DeleteUserAccessToken(ctx context.Context, userID string) error {
+	// Delete the token from the database
+	err := s.messierTokenRepo.DeleteByUserID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user access token: %w", err)
+	}
+	return nil
 }
 
 func (s *userService) isUserAdmin(username string) bool {
