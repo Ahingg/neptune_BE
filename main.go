@@ -1,6 +1,7 @@
 package main
 
 import (
+	models "neptune/backend/models/class"
 	semester "neptune/backend/models/semester"
 	"neptune/backend/models/user"
 	"neptune/backend/pkg/container"
@@ -10,7 +11,7 @@ import (
 	"net/http"
 	"os"
 
-	"neptune/backend/models"
+	m "neptune/backend/models"
 
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
@@ -32,11 +33,14 @@ func main() {
 
 	if err := db.AutoMigrate(
 		&user.User{},
-		&models.Case{},
-		&models.TestCase{},
-		&models.Submission{},
+		&m.Case{},
+		&m.TestCase{},
+		&m.Submission{},
 		&semester.Semester{},
 		&user.MessierToken{},
+		&models.Class{},
+		&models.ClassStudent{},
+		&models.ClassAssistant{},
 	); err != nil {
 		utils.CheckPanic(err)
 	}
@@ -45,6 +49,7 @@ func main() {
 	r := router.NewRouter(
 		&(handlerContainer.UserHandler),
 		&(handlerContainer.InternalSemesterHandler),
+		&(handlerContainer.ClassHandler),
 	)
 
 	port := os.Getenv("PORT")
