@@ -3,13 +3,16 @@ package router
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"neptune/backend/handlers/class"
 	"neptune/backend/handlers/semester"
 	userHand "neptune/backend/handlers/user"
 	"neptune/backend/models/user"
 	"neptune/backend/pkg/middleware"
 )
 
-func NewRouter(userHandler *userHand.UserHandler, semesterHandler *semester.SemesterHandler) *gin.Engine {
+func NewRouter(userHandler *userHand.UserHandler,
+	semesterHandler *semester.SemesterHandler,
+	classHandler *class.ClassHandler) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
@@ -34,23 +37,37 @@ func NewRouter(userHandler *userHand.UserHandler, semesterHandler *semester.Seme
 		authGroup.GET("/me", middleware.RequireAuth(), userHandler.MeHandler)
 	}
 
+	authRestrictedGroup := r.Group("/api")
+	authRestrictedGroup.Use(middleware.RequireAuth())
+	{
+		authRestrictedGroup.GET("/semesters", semesterHandler.GetSemestersHandler)
+		authRestrictedGroup.GET("/classes", classHandler.GetClassesBySemesterAndCourseHandler)
+		authRestrictedGroup.GET("/classes/detail", classHandler.GetClassDetailBySemesterAndCourseHandler)
+		authRestrictedGroup.GET("/class-detail", classHandler.GetClassDetailByTransactionIDHandler)
+	}
+
 	adminGroup := r.Group("/admin")
 	adminGroup.Use(middleware.RequireAuth(), middleware.RequireRole(user.RoleAdmin))
 	{
+		// TODO: Implement admin-specific routes
 		adminGroup.POST("/sync-semester", semesterHandler.SyncSemestersHandler)
-		adminGroup.GET("/semesters", semesterHandler.GetSemestersHandler)
+		adminGroup.POST("/sync-classes", classHandler.SyncClassesHandler)
+		adminGroup.POST("/sync-class-students", classHandler.SyncClassStudentsHandler)
+		adminGroup.POST("/sync-class-assistants", classHandler.SyncClassAssistantsHandler)
 	}
 
 	assistantGroup := r.Group("/assistant")
-	assistantGroup.Use(middleware.RequireAuth(), middleware.RequireRole(user.RoleAssistant))
+	assistantGroup.Use(middleware.RequireAuth(), middleware.RequireRole(user.RoleAssistant, user.RoleAdmin))
 	{
 		// TODO: Implement assistant-specific routes
+
 	}
 
 	studentGroup := r.Group("/student")
 	studentGroup.Use(middleware.RequireAuth(), middleware.RequireRole(user.RoleStudent))
 	{
 		// TODO: Implement student-specific routes
+
 	}
 
 	return r
