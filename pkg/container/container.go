@@ -2,17 +2,23 @@ package container
 
 import (
 	"gorm.io/gorm"
+	caseHandler "neptune/backend/handlers/case"
 	classHand "neptune/backend/handlers/class"
+	contestHandler "neptune/backend/handlers/contest"
 	"neptune/backend/handlers/semester"
 	userHand "neptune/backend/handlers/user"
 	"neptune/backend/messier/auth/log_on"
 	"neptune/backend/messier/auth/me"
 	externalClass "neptune/backend/messier/class"
 	externalSemester "neptune/backend/messier/semester"
+	caseRepository "neptune/backend/repositories/case"
 	internalClassRepo "neptune/backend/repositories/class"
+	contestRepository "neptune/backend/repositories/contest"
 	"neptune/backend/repositories/messier_token"
 	internalSemesterRepo "neptune/backend/repositories/semester"
 	userRepo "neptune/backend/repositories/user"
+	caseService "neptune/backend/services/case"
+	contestService "neptune/backend/services/contest"
 	"neptune/backend/services/internal_class"
 	"neptune/backend/services/internal_semester"
 	userService "neptune/backend/services/user"
@@ -22,6 +28,8 @@ type HandlerContainer struct {
 	UserHandler             userHand.UserHandler
 	InternalSemesterHandler semester.SemesterHandler
 	ClassHandler            classHand.ClassHandler
+	CaseHandler             caseHandler.CaseHandler
+	ContestHandler          contestHandler.ContestHandler
 }
 
 func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
@@ -47,9 +55,21 @@ func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
 	classService := internal_class.NewClassService(messierClassService, classRepo, userRepository, messierTokenRepository)
 	classHandler := classHand.NewClassHandler(classService)
 
+	// case
+	caseRepo := caseRepository.NewCaseRepository(db)
+	caseServ := caseService.NewCaseService(caseRepo)
+	caseHand := caseHandler.NewCaseHandler(caseServ)
+
+	// contest
+	contestRepo := contestRepository.NewContestRepository(db)
+	contestServ := contestService.NewContestService(contestRepo, caseRepo)
+	contestHand := contestHandler.NewContestHandler(contestServ)
+
 	return &HandlerContainer{
 		UserHandler:             *userHandler,
 		InternalSemesterHandler: *internalSemesterHandler,
 		ClassHandler:            *classHandler,
+		CaseHandler:             *caseHand,
+		ContestHandler:          *contestHand,
 	}
 }
