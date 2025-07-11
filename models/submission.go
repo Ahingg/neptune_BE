@@ -1,63 +1,57 @@
 package models
 
-import (
-	"time"
-
-	"gorm.io/gorm"
-)
-
-type Submission struct {
-	ID        uint      `gorm:"primarykey" json:"id"`
-	UserID    uint      `json:"user_id"`
-	CaseID    uint      `json:"case_id"`
-	Code      string    `gorm:"not null" json:"code"`
-	Language  string    `gorm:"not null" json:"language"` // C or Python
-	Status    string    `json:"status"`                   // Pending, Accepted, Wrong Answer, etc.
-	ErrorMsg  string    `json:"error_msg"`                // For failed test cases
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type SubmissionRequest struct {
-	CaseID   uint   `json:"case_id" binding:"required"`
-	Code     string `json:"code" binding:"required"`
-	Language string `json:"language" binding:"required,oneof=C Python"`
-}
-
-func CreateSubmission(db *gorm.DB, submission *Submission) error {
-	return db.Create(submission).Error
-}
-
-func GetSubmission(db *gorm.DB, id uint) (*Submission, error) {
-	var submission Submission
-	if err := db.First(&submission, id).Error; err != nil {
-		return nil, err
-	}
-	return &submission, nil
-}
-
-func GetUserSubmissions(db *gorm.DB, userID uint) ([]Submission, error) {
-	var submissions []Submission
-	if err := db.Where("user_id = ?", userID).Find(&submissions).Error; err != nil {
-		return nil, err
-	}
-	return submissions, nil
-}
-
-func GetCaseSubmissions(db *gorm.DB, caseID uint) ([]Submission, error) {
-	var submissions []Submission
-	if err := db.Where("case_id = ?", caseID).Find(&submissions).Error; err != nil {
-		return nil, err
-	}
-	return submissions, nil
-}
-
-func UpdateSubmissionStatus(db *gorm.DB, id uint, status string, errorMsg string) error {
-	return db.Model(&Submission{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"status":    status,
-		"error_msg": errorMsg,
-	}).Error
-}
+//type Submission struct {
+//	ID        uint      `gorm:"primarykey" json:"id"`
+//	UserID    uint      `json:"user_id"`
+//	CaseID    uint      `json:"case_id"`
+//	Code      string    `gorm:"not null" json:"code"`
+//	Language  string    `gorm:"not null" json:"language"` // C or Python
+//	Status    string    `json:"status"`                   // Pending, Accepted, Wrong Answer, etc.
+//	ErrorMsg  string    `json:"error_msg"`                // For failed test cases
+//	CreatedAt time.Time `json:"created_at"`
+//	UpdatedAt time.Time `json:"updated_at"`
+//}
+//
+//type SubmissionRequest struct {
+//	CaseID   uint   `json:"case_id" binding:"required"`
+//	Code     string `json:"code" binding:"required"`
+//	Language string `json:"language" binding:"required,oneof=C Python"`
+//}
+//
+//func CreateSubmission(db *gorm.DB, submission *Submission) error {
+//	return db.Create(submission).Error
+//}
+//
+//func GetSubmission(db *gorm.DB, id uint) (*Submission, error) {
+//	var submission Submission
+//	if err := db.First(&submission, id).Error; err != nil {
+//		return nil, err
+//	}
+//	return &submission, nil
+//}
+//
+//func GetUserSubmissions(db *gorm.DB, userID uint) ([]Submission, error) {
+//	var submissions []Submission
+//	if err := db.Where("user_id = ?", userID).Find(&submissions).Error; err != nil {
+//		return nil, err
+//	}
+//	return submissions, nil
+//}
+//
+//func GetCaseSubmissions(db *gorm.DB, caseID uint) ([]Submission, error) {
+//	var submissions []Submission
+//	if err := db.Where("case_id = ?", caseID).Find(&submissions).Error; err != nil {
+//		return nil, err
+//	}
+//	return submissions, nil
+//}
+//
+//func UpdateSubmissionStatus(db *gorm.DB, id uint, status string, errorMsg string) error {
+//	return db.Model(&Submission{}).Where("id = ?", id).Updates(map[string]interface{}{
+//		"status":    status,
+//		"error_msg": errorMsg,
+//	}).Error
+//}
 
 //func GetClassLeaderboard(db *gorm.DB, classID string) ([]struct {
 //	UserID    uint   `json:"user_id"`
