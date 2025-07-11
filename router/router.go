@@ -3,7 +3,9 @@ package router
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	caseHandler "neptune/backend/handlers/case"
 	"neptune/backend/handlers/class"
+	contestHandler "neptune/backend/handlers/contest"
 	"neptune/backend/handlers/semester"
 	userHand "neptune/backend/handlers/user"
 	"neptune/backend/models/user"
@@ -12,7 +14,11 @@ import (
 
 func NewRouter(userHandler *userHand.UserHandler,
 	semesterHandler *semester.SemesterHandler,
-	classHandler *class.ClassHandler) *gin.Engine {
+	classHandler *class.ClassHandler,
+	contestHandler *contestHandler.ContestHandler, // NEW
+	caseHandler *caseHandler.CaseHandler,
+) *gin.Engine {
+
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
@@ -41,9 +47,20 @@ func NewRouter(userHandler *userHand.UserHandler,
 	authRestrictedGroup.Use(middleware.RequireAuth())
 	{
 		authRestrictedGroup.GET("/semesters", semesterHandler.GetSemestersHandler)
+
+		// Class routes (existing)
 		authRestrictedGroup.GET("/classes", classHandler.GetClassesBySemesterAndCourseHandler)
-		authRestrictedGroup.GET("/classes/detail", classHandler.GetClassDetailBySemesterAndCourseHandler)
-		authRestrictedGroup.GET("/class-detail", classHandler.GetClassDetailByTransactionIDHandler)
+		authRestrictedGroup.GET("/classes/detail", classHandler.GetClassDetailBySemesterAndCourseHandler)               // Specific detail
+		authRestrictedGroup.GET("/class-detail/:classTransactionId", classHandler.GetClassDetailByTransactionIDHandler) // General class detail by ID
+
+		// Contest routes (general access if contests are viewable by all authenticated users)
+		authRestrictedGroup.GET("/contests", contestHandler.GetAllContests)
+		authRestrictedGroup.GET("/contests/:contestId", contestHandler.GetContestByID)
+		authRestrictedGroup.GET("/classes/:classTransactionId/contests", contestHandler.GetContestsForClass) // Get contests assigned to a class
+
+		// Case routes (general access if problems are viewable by all authenticated users)
+		authRestrictedGroup.GET("/cases", caseHandler.GetAllCases)
+		authRestrictedGroup.GET("/cases/:caseId", caseHandler.GetCaseByID)
 	}
 
 	adminGroup := r.Group("/admin")
@@ -54,6 +71,18 @@ func NewRouter(userHandler *userHand.UserHandler,
 		adminGroup.POST("/sync-classes", classHandler.SyncClassesHandler)
 		adminGroup.POST("/sync-class-students", classHandler.SyncClassStudentsHandler)
 		adminGroup.POST("/sync-class-assistants", classHandler.SyncClassAssistantsHandler)
+
+		adminGroup.POST("/contests", contestHandler.CreateContest)
+		adminGroup.PUT("/contests/:contestId", contestHandler.UpdateContest)
+		adminGroup.DELETE("/contests/:contestId", contestHandler.DeleteContest)
+		adminGroup.POST("/contests/:contestId/cases", contestHandler.AddCasesToContest)
+
+		adminGroup.POST("/classes/:classTransactionId/assign-contest", contestHandler.AssignContestToClass)
+		adminGroup.DELETE("/classes/:classTransactionId/contests/:contestId", contestHandler.RemoveContestFromClass)
+
+		adminGroup.POST("/cases", caseHandler.CreateCase)
+		adminGroup.PUT("/cases/:caseId", caseHandler.UpdateCase)
+		adminGroup.DELETE("/cases/:caseId", caseHandler.DeleteCase)
 	}
 
 	assistantGroup := r.Group("/assistant")
