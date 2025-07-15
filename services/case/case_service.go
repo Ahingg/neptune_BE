@@ -8,7 +8,7 @@ import (
 )
 
 type CaseService interface {
-	CreateCase(ctx context.Context, req requests.CreateCaseRequest) (*responses.CaseResponse, error)
+	CreateCase(ctx context.Context, req requests.CreateCaseRequest, url string) (*responses.CaseResponse, error)
 	GetCaseByID(ctx context.Context, caseID uuid.UUID) (*responses.CaseResponse, error)
 	GetAllCases(ctx context.Context) ([]responses.CaseResponse, error)
 	UpdateCase(ctx context.Context, caseID uuid.UUID, req requests.UpdateCaseRequest) (*responses.CaseResponse, error)

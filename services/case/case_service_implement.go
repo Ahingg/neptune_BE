@@ -19,12 +19,12 @@ func NewCaseService(caseRepo caseRepository.CaseRepository) CaseService {
 }
 
 // CreateCase creates a new problem case.
-func (s *caseServiceImpl) CreateCase(ctx context.Context, req requests.CreateCaseRequest) (*responses.CaseResponse, error) {
+func (s *caseServiceImpl) CreateCase(ctx context.Context, req requests.CreateCaseRequest, url string) (*responses.CaseResponse, error) {
 	problemCase := &caseModel.Case{
 		ID:            uuid.New(),
 		Name:          req.Name,
 		Description:   req.Description,
-		PDFFileUrl:    req.PDFFileUrl,
+		PDFFileUrl:    url,
 		TimeLimitMs:   req.TimeLimitMs,
 		MemoryLimitMb: req.MemoryLimitMb,
 	}
@@ -98,7 +98,6 @@ func (s *caseServiceImpl) UpdateCase(ctx context.Context, caseID uuid.UUID, req 
 
 	problemCase.Name = req.Name
 	problemCase.Description = req.Description
-	problemCase.PDFFileUrl = req.PDFFileUrl
 	problemCase.TimeLimitMs = req.TimeLimitMs
 	problemCase.MemoryLimitMb = req.MemoryLimitMb
 

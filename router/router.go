@@ -35,6 +35,7 @@ func NewRouter(userHandler *userHand.UserHandler,
 		})
 	})
 
+	r.Static("/public/cases", "./public/case_file") // Serve static files from the public directory
 	// Public auth routes
 	authGroup := r.Group("/auth")
 	{

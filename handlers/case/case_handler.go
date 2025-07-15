@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"log"
 	"neptune/backend/pkg/requests"
 	caseService "neptune/backend/services/case"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -21,20 +25,81 @@ func NewCaseHandler(caseService caseService.CaseService) *CaseHandler {
 
 // CreateCase handles POST /api/cases
 func (h *CaseHandler) CreateCase(c *gin.Context) {
-	var req requests.CreateCaseRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	err := c.Request.ParseMultipartForm(10 << 20) // 10 MB limit
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to parse form data: %v", err.Error())})
 		return
 	}
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+
+	name := c.PostForm("name")
+	description := c.PostForm("description")
+	timeLimitMsStr := c.PostForm("time_limit_ms")
+	memoryLimitMbStr := c.PostForm("memory_limit_mb")
+
+	timeLimitMs, err := strconv.Atoi(timeLimitMsStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time_limit_ms format"})
+		return
+	}
+
+	memoryLimitMb, err := strconv.Atoi(memoryLimitMbStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid memory_limit_mb format"})
+		return
+	}
+
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Name is required"})
+		return
+	}
+	if timeLimitMs <= 0 || memoryLimitMb <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Time and memory limits must be positive"})
+		return
+	}
+
+	file, err := c.FormFile("pdf_file") // "pdf_file" is the name of the input field in the form
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to get PDF file: %v", err.Error())})
+		return
+	}
+
+	ext := filepath.Ext(file.Filename)
+	if ext != ".pdf" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only PDF files are allowed"})
+		return
+	}
+
+	uniqueFilename := uuid.New().String() + ext
+
+	PDF_UPLOAD := "./public/case_file"
+	filePath := filepath.Join(PDF_UPLOAD, uniqueFilename)
+	fileURL := "/public/case_file/" + uniqueFilename
+
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		log.Printf("Error saving uploaded file %s: %v", filePath, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save PDF file"})
+		return
+	}
+
+	serviceReq := requests.CreateCaseRequest{
+		Name:          name,
+		Description:   description,
+		TimeLimitMs:   timeLimitMs,
+		MemoryLimitMb: memoryLimitMb,
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 	defer cancel()
 
-	resp, err := h.caseService.CreateCase(ctx, req)
+	resp, err := h.caseService.CreateCase(ctx, serviceReq, fileURL)
 	if err != nil {
+		os.Remove(filePath)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create case: %v", err.Error())})
 		return
 	}
+
 	c.JSON(http.StatusCreated, resp)
+
 }
 
 // GetCaseByID handles GET /api/cases/:caseId
