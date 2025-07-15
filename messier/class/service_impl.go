@@ -49,6 +49,15 @@ func (s *messierClassService) GetAssistantDetailFromAssistantInitial(ctx context
 		return nil, fmt.Errorf("failed to get assistant detail: %w", err)
 	}
 
+	log.Printf("Assistant detail API response length: %d", len(response))
+
+	// Check if response is empty
+	if len(response) == 0 {
+		log.Printf("Warning: No assistant detail found for initial %s and generation %s", initial, generation)
+		return nil, fmt.Errorf("no assistant detail found for initial %s and generation %s", initial, generation)
+	}
+
+	log.Printf("Found assistant detail for initial %s: %+v", initial, response[0])
 	return &response[0], nil
 }
 

@@ -1,8 +1,6 @@
 package router
 
 import (
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
 	caseHandler "neptune/backend/handlers/case"
 	"neptune/backend/handlers/class"
 	contestHandler "neptune/backend/handlers/contest"
@@ -10,6 +8,9 @@ import (
 	userHand "neptune/backend/handlers/user"
 	"neptune/backend/models/user"
 	"neptune/backend/pkg/middleware"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 func NewRouter(userHandler *userHand.UserHandler,
@@ -18,10 +19,9 @@ func NewRouter(userHandler *userHand.UserHandler,
 	contestHandler *contestHandler.ContestHandler, // NEW
 	caseHandler *caseHandler.CaseHandler,
 ) *gin.Engine {
-
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
+		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -49,6 +49,7 @@ func NewRouter(userHandler *userHand.UserHandler,
 		authRestrictedGroup.GET("/semesters", semesterHandler.GetSemestersHandler)
 
 		// Class routes (existing)
+		authRestrictedGroup.GET("/debug-semesters", semesterHandler.DebugSemestersHandler)
 		authRestrictedGroup.GET("/classes", classHandler.GetClassesBySemesterAndCourseHandler)
 		authRestrictedGroup.GET("/classes/detail", classHandler.GetClassDetailBySemesterAndCourseHandler)               // Specific detail
 		authRestrictedGroup.GET("/class-detail/:classTransactionId", classHandler.GetClassDetailByTransactionIDHandler) // General class detail by ID
@@ -96,7 +97,7 @@ func NewRouter(userHandler *userHand.UserHandler,
 	studentGroup.Use(middleware.RequireAuth(), middleware.RequireRole(user.RoleStudent))
 	{
 		// TODO: Implement student-specific routes
-
+		studentGroup.GET("/classes/detail", classHandler.GetClassDetailBySemesterCourseAndStudentHandler)
 	}
 
 	return r

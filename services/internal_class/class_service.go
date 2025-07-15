@@ -12,5 +12,6 @@ type ClassService interface {
 
 	GetClassesBySemesterAndCourse(ctx context.Context, semesterID string, courseID string) ([]responses.GetClassWithoutDetailResponse, error)
 	GetClassDetailBySemesterAndCourse(ctx context.Context, semesterID string, courseID string) ([]responses.GetDetailClassResponse, error)
+	GetClassDetailBySemesterCourseAndStudent(ctx context.Context, semesterID, courseID, userID string) ([]responses.GetDetailClassResponse, error)
 	GetClassDetailByTransactionID(ctx context.Context, classTransactionID string) (*responses.GetDetailClassResponse, error) // For future CRUD}
 }

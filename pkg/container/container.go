@@ -1,7 +1,6 @@
 package container
 
 import (
-	"gorm.io/gorm"
 	caseHandler "neptune/backend/handlers/case"
 	classHand "neptune/backend/handlers/class"
 	contestHandler "neptune/backend/handlers/contest"
@@ -22,6 +21,8 @@ import (
 	"neptune/backend/services/internal_class"
 	"neptune/backend/services/internal_semester"
 	userService "neptune/backend/services/user"
+
+	"gorm.io/gorm"
 )
 
 type HandlerContainer struct {

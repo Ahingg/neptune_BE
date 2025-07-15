@@ -3,9 +3,10 @@ package semester
 import (
 	"context"
 	"fmt"
+	model "neptune/backend/models/semester"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	model "neptune/backend/models/semester"
 )
 
 type semesterRepository struct {
@@ -34,6 +35,10 @@ func (s *semesterRepository) FindAll(ctx context.Context) ([]model.Semester, err
 	result := s.db.WithContext(ctx).Find(&semesters)
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to retrieve all semesters: %w", result.Error)
+	}
+	fmt.Printf("Repository: Found %d semesters in database\n", len(semesters))
+	for i, semester := range semesters {
+		fmt.Printf("Repository: Semester %d: ID=%s, Description=%s\n", i+1, semester.ID, semester.Description)
 	}
 	return semesters, nil
 }
