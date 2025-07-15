@@ -37,3 +37,6 @@ vendor/
 
 # Env files
 .env
+
+# files
+public/case_file/
