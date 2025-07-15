@@ -2,8 +2,9 @@ package class
 
 import (
 	"context"
-	"github.com/google/uuid"
 	models "neptune/backend/models/class"
+
+	"github.com/google/uuid"
 )
 
 type ClassRepository interface {
@@ -17,4 +18,5 @@ type ClassRepository interface {
 	FindFirstStudentByClassTransactionID(ctx context.Context, classTransactionID string) (*models.ClassStudent, error)
 	FindClassByTransactionID(ctx context.Context, classTransactionID string) (*models.Class, error)
 	FindClassBasicInfoBySemesterAndCourse(ctx context.Context, semesterID, courseOutlineID string) ([]models.Class, error)
+	FindClassBySemesterCourseAndStudent(ctx context.Context, semesterID, courseOutlineID, userID string) ([]models.Class, error)
 }

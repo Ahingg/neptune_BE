@@ -12,6 +12,7 @@ import (
 )
 
 func SendRequest(ctx context.Context, method, url string, reqBody interface{}, resp interface{}, authToken string) error {
+	fmt.Printf("Sending %s request to: %s\n", method, url)
 	var bodyReader io.Reader
 
 	if reqBody != nil {
@@ -32,9 +33,10 @@ func SendRequest(ctx context.Context, method, url string, reqBody interface{}, r
 	if authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+authToken)
 	}
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: 30 * time.Second}
 	respHTTP, err := client.Do(req)
 	if err != nil {
+		fmt.Printf("Request failed: %v\n", err)
 		utils.CheckPanic(fmt.Errorf("failed to send request: %w", err))
 		return fmt.Errorf("failed to send request to messier: %w", err)
 	}

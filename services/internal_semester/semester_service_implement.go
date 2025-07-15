@@ -18,25 +18,37 @@ type semesterService struct {
 }
 
 func (s semesterService) SyncSemester(ctx context.Context, requestMakerID string) error {
+	log.Printf("Starting semester sync for user: %s", requestMakerID)
+
 	adminToken, err := s.messierTokenRepository.GetMessierTokenByUserID(ctx, requestMakerID)
 	if err != nil {
+		log.Printf("Failed to get admin token for user %s: %v", requestMakerID, err)
 		return fmt.Errorf("failed to get admin token: %w", err)
 	}
 
+	log.Printf("Found admin token for user %s", requestMakerID)
+
 	if adminToken == nil || adminToken.MessierAccessToken == "" {
+		log.Printf("Admin token not found or empty for user ID: %s", requestMakerID)
 		return fmt.Errorf("admin token not found or empty for user ID: %s", requestMakerID)
 	}
 
 	if adminToken.MessierTokenExpires.Before(time.Now()) {
+		log.Printf("Admin token has expired for user ID: %s", requestMakerID)
 		return fmt.Errorf("admin token has expired for user ID: %s", requestMakerID)
 	}
+
+	log.Printf("Admin token is valid, fetching semesters from external API")
 
 	messierAccessToken := adminToken.MessierAccessToken
 
 	externalSemesters, err := s.externalSemesterService.GetSemesters(ctx, messierAccessToken)
 	if err != nil {
+		log.Printf("Failed to get external semesters: %v", err)
 		return fmt.Errorf("failed to get external semesters: %w", err)
 	}
+
+	log.Printf("Successfully fetched %d semesters from external API", len(externalSemesters))
 
 	for _, ms := range externalSemesters {
 		if ms.Start.IsZero() { // Check if the parsed Start time is its zero value
@@ -54,9 +66,12 @@ func (s semesterService) SyncSemester(ctx context.Context, requestMakerID string
 			Start:       ms.Start.Time,
 			End:         endTimePtr,
 		}
+		log.Printf("Saving semester: ID=%s, Description=%s", sem.ID, sem.Description)
 		if err := s.semesterRepository.Save(ctx, sem); err != nil {
 			log.Printf("Warning: Failed to save or update semester %s: %v", ms.SemesterID, err)
 			// You might choose to return an error here or continue processing
+		} else {
+			log.Printf("Successfully saved semester: ID=%s, Description=%s", sem.ID, sem.Description)
 		}
 	}
 
@@ -65,10 +80,13 @@ func (s semesterService) SyncSemester(ctx context.Context, requestMakerID string
 }
 
 func (s semesterService) GetInternalSemesters(ctx context.Context) ([]model.Semester, error) {
+	log.Printf("Getting internal semesters from database")
 	semesters, err := s.semesterRepository.FindAll(ctx)
 	if err != nil {
+		log.Printf("Failed to retrieve semesters from internal DB: %v", err)
 		return nil, fmt.Errorf("failed to retrieve semesters from internal DB: %w", err)
 	}
+	log.Printf("Successfully retrieved %d semesters from internal DB", len(semesters))
 	return semesters, nil
 }
 

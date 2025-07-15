@@ -2,10 +2,11 @@ package semester
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"neptune/backend/pkg/responses"
 	"neptune/backend/services/internal_semester"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type SemesterHandler struct {
@@ -55,6 +56,11 @@ func (h *SemesterHandler) GetSemestersHandler(c *gin.Context) {
 		return
 	}
 
+	fmt.Printf("Found %d semesters in database\n", len(semesters))
+	for i, s := range semesters {
+		fmt.Printf("Semester %d: ID=%s, Description=%s\n", i+1, s.ID, s.Description)
+	}
+
 	// Transform model.Semester to your desired GetSemestersResponse format
 	// if needed, otherwise just send model.Semester array
 	responseSemesters := make([]responses.SemesterResponse, len(semesters))
@@ -68,5 +74,24 @@ func (h *SemesterHandler) GetSemestersHandler(c *gin.Context) {
 		}
 	}
 
+	fmt.Printf("Sending %d semesters to frontend\n", len(responseSemesters))
 	c.JSON(http.StatusOK, responseSemesters)
+}
+
+// DebugSemestersHandler is a temporary debug endpoint to check database state
+func (h *SemesterHandler) DebugSemestersHandler(c *gin.Context) {
+	// Get all semesters
+	semesters, err := h.internalSemesterService.GetInternalSemesters(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("Failed to retrieve semesters: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"count":     len(semesters),
+		"semesters": semesters,
+		"message":   "Debug info for semesters",
+	})
 }

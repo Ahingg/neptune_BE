@@ -3,7 +3,6 @@ package internal_class
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"log"
 	messierClass "neptune/backend/messier/class"
 	"neptune/backend/messier/constants"
@@ -16,6 +15,8 @@ import (
 	userRepository "neptune/backend/repositories/user"
 	"regexp"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type classService struct {
@@ -195,6 +196,7 @@ func (c classService) SyncClassAssistants(ctx context.Context, semesterID string
 		}
 
 		var assistantUserIDs []uuid.UUID
+		log.Printf("Processing %d assistant initials for class %s: %v", len(classAssistantInitials), cl.ClassCode, classAssistantInitials)
 		for _, initial := range classAssistantInitials {
 			matches := generationRegex.FindStringSubmatch(initial)
 			if len(matches) < 2 {
@@ -202,6 +204,7 @@ func (c classService) SyncClassAssistants(ctx context.Context, semesterID string
 				continue
 			}
 			generation := matches[1]
+			log.Printf("Processing assistant initial %s with generation %s for class %s", initial, generation, cl.ClassCode)
 
 			// 2. Fetch detailed assistant info
 			assistantDetail, err := c.messierClassSrv.GetAssistantDetailFromAssistantInitial(ctx, initial, generation, authToken)
@@ -282,6 +285,26 @@ func (c classService) GetClassDetailBySemesterAndCourse(ctx context.Context, sem
 	classes, err := c.classRepo.FindAllClassesBySemesterAndCourse(ctx, semesterID, courseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve classes for semester %s and course %s: %w", semesterID, courseID, err)
+	}
+
+	var response []responses.GetDetailClassResponse
+	for _, class := range classes {
+		response = append(response, responses.GetDetailClassResponse{
+			ClassTransactionID: class.ClassTransactionID.String(),
+			SemesterID:         class.SemesterID.String(),
+			CourseOutlineID:    class.CourseOutlineID.String(),
+			ClassCode:          class.ClassCode,
+			Students:           class.Students,
+			Assistants:         class.Assistants,
+		})
+	}
+	return response, nil
+}
+
+func (c classService) GetClassDetailBySemesterCourseAndStudent(ctx context.Context, semesterID, courseID, userID string) ([]responses.GetDetailClassResponse, error) {
+	classes, err := c.classRepo.FindClassBySemesterCourseAndStudent(ctx, semesterID, courseID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve classes for semester %s, course %s, and user %s: %w", semesterID, courseID, userID, err)
 	}
 
 	var response []responses.GetDetailClassResponse

@@ -3,10 +3,11 @@ package class
 import (
 	"context"
 	"fmt"
+	models "neptune/backend/models/class"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	models "neptune/backend/models/class"
 )
 
 type classRepositoryImplement struct {
@@ -124,6 +125,22 @@ func (c classRepositoryImplement) FindFirstStudentByClassTransactionID(ctx conte
 		return nil, fmt.Errorf("failed to find first student by class transaction ID %s: %w", classTransactionID, result.Error)
 	}
 	return &classStudent, nil
+}
+
+func (c classRepositoryImplement) FindClassBySemesterCourseAndStudent(ctx context.Context, semesterID, courseOutlineID, userID string) ([]models.Class, error) {
+	var classes []models.Class
+	result := c.db.WithContext(ctx).
+		Preload("Students.User").
+		Preload("Assistants.User").
+		Joins("JOIN class_students ON class_students.class_transaction_id = classes.class_transaction_id").
+		Where("classes.semester_id = ?", semesterID).
+		Where("classes.course_outline_id = ?", courseOutlineID).
+		Where("class_students.user_id = ?", userID).
+		Find(&classes)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to retrieve classes for semester %s, course %s, and user %s: %w", semesterID, courseOutlineID, userID, result.Error)
+	}
+	return classes, nil
 }
 
 func NewClassRepository(db *gorm.DB) ClassRepository {
