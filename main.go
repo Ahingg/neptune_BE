@@ -27,7 +27,6 @@ func init() {
 }
 
 func main() {
-	// Auto migrate schemas
 	db := database.Connect()
 
 	if err := db.AutoMigrate(
@@ -39,7 +38,7 @@ func main() {
 		&contestModel.Case{},
 		&models.ClassStudent{},
 		&models.ClassAssistant{},
-		&contestModel.ContestCase{}, // NEW: Migrate ContestCase (FKs to Contest and Case)
+		&contestModel.ContestCase{},
 		&contestModel.ClassContest{},
 	); err != nil {
 		utils.CheckPanic(err)

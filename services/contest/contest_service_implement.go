@@ -3,12 +3,13 @@ package contestService
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	contestModel "neptune/backend/models/contest"
 	"neptune/backend/pkg/requests"
 	"neptune/backend/pkg/responses"
 	caseRepository "neptune/backend/repositories/case"
 	contestRepository "neptune/backend/repositories/contest"
+
+	"github.com/google/uuid"
 )
 
 type contestServiceImpl struct {
@@ -33,6 +34,24 @@ func (s *contestServiceImpl) CreateContest(ctx context.Context, req requests.Cre
 	if err := s.contestRepo.SaveContest(ctx, contest); err != nil {
 		return nil, fmt.Errorf("failed to create contest: %w", err)
 	}
+
+	// If class assignment data is provided, also create a class_contests record
+	if req.ClassTransactionID != nil && req.StartTime != nil && req.EndTime != nil {
+		classContest := &contestModel.ClassContest{
+			ClassTransactionID: *req.ClassTransactionID,
+			ContestID:          contest.ID,
+			StartTime:          *req.StartTime,
+			EndTime:            *req.EndTime,
+		}
+
+		if err := s.contestRepo.AssignContestToClass(ctx, classContest); err != nil {
+			// Log the error but don't fail the contest creation
+			// The contest was created successfully, just the class assignment failed
+			fmt.Printf("Warning: Failed to assign contest %s to class %s: %v\n",
+				contest.ID.String(), req.ClassTransactionID.String(), err)
+		}
+	}
+
 	return &responses.ContestResponse{
 		ID:          contest.ID,
 		Name:        contest.Name,
@@ -184,6 +203,16 @@ func (s *contestServiceImpl) GetContestsForClass(ctx context.Context, classTrans
 
 	resp := make([]responses.ClassContestAssignmentResponse, len(classContests))
 	for i, cc := range classContests {
+		var contestResp *responses.ContestResponse
+		if cc.Contest.ID != uuid.Nil {
+			contestResp = &responses.ContestResponse{
+				ID:          cc.Contest.ID,
+				Name:        cc.Contest.Name,
+				Description: cc.Contest.Description,
+				CreatedAt:   cc.Contest.CreatedAt,
+				UpdatedAt:   cc.Contest.UpdatedAt,
+			}
+		}
 		resp[i] = responses.ClassContestAssignmentResponse{
 			ClassTransactionID: cc.ClassTransactionID,
 			ContestID:          cc.ContestID,
@@ -191,6 +220,7 @@ func (s *contestServiceImpl) GetContestsForClass(ctx context.Context, classTrans
 			EndTime:            cc.EndTime,
 			CreatedAt:          cc.CreatedAt,
 			UpdatedAt:          cc.UpdatedAt,
+			Contest:            contestResp,
 		}
 	}
 	return resp, nil

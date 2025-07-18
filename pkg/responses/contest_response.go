@@ -1,8 +1,9 @@
 package responses
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type ContestResponse struct {
@@ -14,12 +15,13 @@ type ContestResponse struct {
 }
 
 type ClassContestAssignmentResponse struct {
-	ClassTransactionID uuid.UUID `json:"class_transaction_id"`
-	ContestID          uuid.UUID `json:"contest_id"`
-	StartTime          time.Time `json:"start_time"`
-	EndTime            time.Time `json:"end_time"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ClassTransactionID uuid.UUID        `json:"class_transaction_id"`
+	ContestID          uuid.UUID        `json:"contest_id"`
+	StartTime          time.Time        `json:"start_time"`
+	EndTime            time.Time        `json:"end_time"`
+	CreatedAt          time.Time        `json:"created_at"`
+	UpdatedAt          time.Time        `json:"updated_at"`
+	Contest            *ContestResponse `json:"contest"`
 }
 
 type ContestCaseProblemResponse struct {

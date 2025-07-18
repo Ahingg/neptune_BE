@@ -1,14 +1,17 @@
 package contestHandler
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+	"io"
 	"neptune/backend/pkg/requests"
 	contestService "neptune/backend/services/contest"
 	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type ContestHandler struct {
@@ -22,10 +25,27 @@ func NewContestHandler(contestService contestService.ContestService) *ContestHan
 // CreateContest handles POST /api/contests
 func (h *ContestHandler) CreateContest(c *gin.Context) {
 	var req requests.CreateContestRequest
+
+	// Log the raw request body for debugging
+	body, err := c.GetRawData()
+	if err != nil {
+		fmt.Printf("Error reading request body: %v\n", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		return
+	}
+	fmt.Printf("Raw request body: %s\n", string(body))
+
+	// Reset the request body so it can be read again
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
+
 	if err := c.ShouldBindJSON(&req); err != nil {
+		fmt.Printf("JSON binding error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	fmt.Printf("Parsed request: %+v\n", req)
+
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
