@@ -5,8 +5,10 @@ import (
 	"neptune/backend/handlers/class"
 	contestHandler "neptune/backend/handlers/contest"
 	"neptune/backend/handlers/semester"
+	submissionHand "neptune/backend/handlers/submission"
 	testCaseHand "neptune/backend/handlers/test_case"
 	userHand "neptune/backend/handlers/user"
+	websocketHand "neptune/backend/handlers/websocket"
 	"neptune/backend/models/user"
 	"neptune/backend/pkg/middleware"
 
@@ -20,6 +22,8 @@ func NewRouter(userHandler *userHand.UserHandler,
 	contestHandler *contestHandler.ContestHandler,
 	caseHandler *caseHandler.CaseHandler,
 	testCaseHandler *testCaseHand.TestCaseHandler,
+	webSocketHandler *websocketHand.WebSocketHandler,
+	submissionHandler *submissionHand.SubmissionHandler,
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
@@ -53,20 +57,24 @@ func NewRouter(userHandler *userHand.UserHandler,
 	{
 		authRestrictedGroup.GET("/semesters", semesterHandler.GetSemestersHandler)
 
-		// Class routes (existing)
+		// Class routes
 		authRestrictedGroup.GET("/debug-semesters", semesterHandler.DebugSemestersHandler)
 		authRestrictedGroup.GET("/classes", classHandler.GetClassesBySemesterAndCourseHandler)
 		authRestrictedGroup.GET("/classes/detail", classHandler.GetClassDetailBySemesterAndCourseHandler)               // Specific detail
 		authRestrictedGroup.GET("/class-detail/:classTransactionId", classHandler.GetClassDetailByTransactionIDHandler) // General class detail by ID
 
-		// Contest routes (general access if contests are viewable by all authenticated users)
+		// Contest routes
 		authRestrictedGroup.GET("/contests", contestHandler.GetAllContests)
 		authRestrictedGroup.GET("/contests/:contestId", contestHandler.GetContestByID)
 		authRestrictedGroup.GET("/classes/:classTransactionId/contests", contestHandler.GetContestsForClass) // Get contests assigned to a class
 
-		// Case routes (general access if problems are viewable by all authenticated users)
+		// Case routes
 		authRestrictedGroup.GET("/cases", caseHandler.GetAllCases)
 		authRestrictedGroup.GET("/cases/:caseId", caseHandler.GetCaseByID)
+
+		// Submission routes
+		authRestrictedGroup.POST("/submissions", submissionHandler.SubmitCode)
+		authRestrictedGroup.GET("/ws/submissions/:submissionId", webSocketHandler.HandleSubmissionConnection)
 	}
 
 	adminGroup := r.Group("/admin")

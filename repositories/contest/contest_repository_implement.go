@@ -32,6 +32,7 @@ func (r *contestRepositoryImpl) SaveContest(ctx context.Context, contest *contes
 		Columns: []clause.Column{{Name: "id"}}, // Conflict on primary key (ID)
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			"name":        contest.Name,
+			"scope":       contest.Scope,
 			"description": contest.Description,
 			"updated_at":  time.Now(),
 		}),
