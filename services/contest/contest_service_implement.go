@@ -36,6 +36,7 @@ func (s *contestServiceImpl) CreateContest(ctx context.Context, req requests.Cre
 	return &responses.ContestResponse{
 		ID:          contest.ID,
 		Name:        contest.Name,
+		Scope:       contest.Scope,
 		Description: contest.Description,
 		CreatedAt:   contest.CreatedAt,
 	}, nil
@@ -54,6 +55,7 @@ func (s *contestServiceImpl) GetContestByID(ctx context.Context, contestID uuid.
 	resp := &responses.ContestDetailResponse{
 		ID:          contest.ID,
 		Name:        contest.Name,
+		Scope:       contest.Scope,
 		Description: contest.Description,
 		CreatedAt:   contest.CreatedAt,
 		UpdatedAt:   contest.UpdatedAt,
@@ -86,6 +88,7 @@ func (s *contestServiceImpl) GetAllContests(ctx context.Context) ([]responses.Co
 		resp[i] = responses.ContestResponse{
 			ID:          c.ID,
 			Name:        c.Name,
+			Scope:       c.Scope,
 			Description: c.Description,
 			CreatedAt:   c.CreatedAt,
 			UpdatedAt:   c.UpdatedAt,
@@ -114,6 +117,7 @@ func (s *contestServiceImpl) UpdateContest(ctx context.Context, contestID uuid.U
 	return &responses.ContestResponse{
 		ID:          contest.ID,
 		Name:        contest.Name,
+		Scope:       contest.Scope,
 		Description: contest.Description,
 		CreatedAt:   contest.CreatedAt,
 		UpdatedAt:   contest.UpdatedAt,

@@ -9,6 +9,7 @@ type ContestResponse struct {
 	ID          uuid.UUID `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
+	Scope       string    `json:"scope"` // e.g., "public", "class"
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -35,6 +36,7 @@ type ContestDetailResponse struct {
 	ID          uuid.UUID                    `json:"id"`
 	Name        string                       `json:"name"`
 	Description string                       `json:"description"`
+	Scope       string                       `json:"scope"` // e.g., "public", "class"
 	CreatedAt   time.Time                    `json:"created_at"`
 	UpdatedAt   time.Time                    `json:"updated_at"`
 	Cases       []ContestCaseProblemResponse `json:"cases"`

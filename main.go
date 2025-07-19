@@ -4,6 +4,7 @@ import (
 	models "neptune/backend/models/class"
 	contestModel "neptune/backend/models/contest"
 	semester "neptune/backend/models/semester"
+	submissionModel "neptune/backend/models/submission"
 	testCaseModel "neptune/backend/models/test_case"
 	"neptune/backend/models/user"
 	"neptune/backend/pkg/container"
@@ -43,11 +44,13 @@ func main() {
 		&models.ClassAssistant{},
 		&contestModel.ContestCase{}, // NEW: Migrate ContestCase (FKs to Contest and Case)
 		&contestModel.ClassContest{},
+		&submissionModel.Submission{},
 	); err != nil {
 		utils.CheckPanic(err)
 	}
 
 	handlerContainer := container.NewHandlerContainer(db)
+
 	r := router.NewRouter(
 		&(handlerContainer.UserHandler),
 		&(handlerContainer.InternalSemesterHandler),
@@ -55,6 +58,8 @@ func main() {
 		&(handlerContainer.ContestHandler),
 		&(handlerContainer.CaseHandler),
 		&(handlerContainer.TestCaseHandler),
+		&(handlerContainer.WebSocketHandler),
+		&(handlerContainer.SubmissionHandler),
 	)
 
 	port := os.Getenv("PORT")
