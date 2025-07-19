@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
+	"log"
 	"neptune/backend/messier/auth/log_on"
 	"neptune/backend/messier/auth/me"
 	model "neptune/backend/models/user"
@@ -40,97 +41,198 @@ func NewUserService(
 }
 
 func (s *userService) LoginAssistant(ctx context.Context, req *requests.LoginRequest) (*responses.LoginResponse, string, time.Time, error) {
-
-	// Pake Login Asssitant dlu
-	logOnResp, err := s.labLogOnSvc.LogOnAssistant(ctx, req.Username, req.Password)
-
-	if err != nil {
-		return nil, "", time.Time{}, fmt.Errorf("failed to log on assistant: %w", err)
-	}
-
-	// Di titik ini berarti udah dpt tokennya, tinggal pake /me
-	meResp, err := s.labMeSvc.GetAssistantProfile(ctx, logOnResp.AccessToken)
-	if err != nil {
-		return nil, "", time.Time{}, fmt.Errorf("failed to get assistant profile: %w", err)
-	}
-
-	// Di titik ini berarti udah berhasil dapetin data user, tinggal disesuain aja datanya trus balikin
-	if s.isUserAdmin(meResp.Username) {
-		meResp.Role = model.RoleAdmin
-	}
-
-	// Save data dari usernya ke db, biar ga buang buang waktu kalau nanti mau ngeseed.
-	selfToken, err := jwt.CreateJWT(
-		meResp.UserID,
-		meResp.Username,
-		meResp.Name,
-		meResp.Role,
-		time.Now().Add(time.Duration(logOnResp.ExpiresIn)*time.Second),
+	var (
+		messierAccessToken  string
+		messierTokenExpires time.Time
+		meResp              *me.MeResponse
+		err                 error
 	)
 
+	// 1. Try to find existing MessierToken in DB
+	// We need the internal UserID to look up the MessierToken.
+	// First, try to find the user by username (NIM).
+	internalUser, err := s.userRepo.GetUserByUsername(ctx, req.Username)
 	if err != nil {
-		return nil, "", time.Time{}, fmt.Errorf("failed to create JWT: %w", err)
+		return nil, "", time.Time{}, fmt.Errorf("failed to look up internal user by username: %w", err)
 	}
 
-	// later save messier token to the db.
-	err = s.messierTokenRepo.Save(ctx, &model.MessierToken{
-		UserID:              meResp.UserID,
-		MessierAccessToken:  logOnResp.AccessToken,
-		MessierTokenExpires: time.Now().Add(time.Duration(logOnResp.ExpiresIn) * time.Second),
-	})
+	if internalUser != nil {
+		// User exists internally, try to use their cached Messier token
+		messierToken, err := s.messierTokenRepo.GetMessierTokenByUserID(ctx, internalUser.ID.String())
+		if err != nil {
+			log.Printf("Warning: Failed to retrieve cached Messier token for user %s: %v", internalUser.ID.String(), err)
+			// Proceed to get new token if DB lookup fails
+		} else if messierToken != nil && messierToken.MessierTokenExpires.After(time.Now().Add(5*time.Minute)) {
+			// Token found and is not expired (add a buffer, e.g., 5 minutes)
+			messierAccessToken = messierToken.MessierAccessToken
+			messierTokenExpires = messierToken.MessierTokenExpires
+			log.Printf("Using cached Messier token for user %s", internalUser.Username)
 
+			// Try to get profile with cached token
+			meResp, err = s.labMeSvc.GetAssistantProfile(ctx, messierAccessToken)
+			if err != nil {
+				log.Printf("Cached Messier token failed for user %s: %v. Attempting new login.", internalUser.Username, err)
+				// If profile fetch fails, token might be invalid/revoked, proceed to full login
+				messierAccessToken = "" // Clear token to force new login
+			}
+		}
+	}
+
+	// 2. If no valid cached token or profile fetch failed, perform full login
+	if messierAccessToken == "" {
+		logOnResp, logonErr := s.labLogOnSvc.LogOnAssistant(ctx, req.Username, req.Password)
+		if logonErr != nil {
+			return nil, "", time.Time{}, fmt.Errorf("failed to log on assistant: %w", logonErr)
+		}
+		messierAccessToken = logOnResp.AccessToken
+		messierTokenExpires = time.Now().Add(time.Duration(logOnResp.ExpiresIn) * time.Second)
+
+		meResp, err = s.labMeSvc.GetAssistantProfile(ctx, messierAccessToken)
+		if err != nil {
+			return nil, "", time.Time{}, fmt.Errorf("failed to get assistant profile with new token: %w", err)
+		}
+		log.Printf("Successfully obtained new Messier token for user %s", req.Username)
+	}
+
+	// 3. Determine user's role (from Messier or internal logic)
+	userRole := model.RoleAssistant // Default role
+	if s.isUserAdmin(meResp.Username) {
+		userRole = model.RoleAdmin
+	} else if meResp.Role != "" { // Use role from Messier if available and not empty
+		userRole = model.Role(meResp.Role) // Convert string to model.Role
+	}
+
+	// 4. Upsert/Update User record in our DB
+	if internalUser == nil {
+		// User does not exist internally, create new
+		internalUser = &model.User{
+			ID:        uuid.New(), // Generate new UUID for internal user
+			Username:  meResp.Username,
+			Name:      meResp.Name,
+			Role:      userRole,
+			CreatedAt: time.Now(),
+		}
+		log.Printf("Creating new internal user record for %s", internalUser.Username)
+	} else {
+		// User exists internally, update details if changed
+		if internalUser.Name != meResp.Name || internalUser.Role != userRole {
+			internalUser.Name = meResp.Name
+			internalUser.Role = userRole
+			log.Printf("Updating existing internal user record for %s", internalUser.Username)
+		} else {
+			log.Printf("Internal user record for %s is up-to-date.", internalUser.Username)
+		}
+	}
+
+	if err := s.userRepo.Save(ctx, internalUser); err != nil {
+		return nil, "", time.Time{}, fmt.Errorf("failed to save/update internal user record: %w", err)
+	}
+
+	// 5. Save/Update Messier token in our DB (linked to internal UserID)
+	messierTokenRecord := &model.MessierToken{
+		UserID:              internalUser.ID.String(),
+		MessierAccessToken:  messierAccessToken,
+		MessierTokenExpires: messierTokenExpires,
+	}
+	if err := s.messierTokenRepo.Save(ctx, messierTokenRecord); err != nil {
+		return nil, "", time.Time{}, fmt.Errorf("failed to save messier token to DB: %w", err)
+	}
+
+	// 6. Create and return our internal JWT
+	selfToken, err := jwt.CreateJWT(
+		internalUser.ID.String(), // Use internal UserID for our JWT
+		internalUser.Username,
+		internalUser.Name,
+		internalUser.Role,
+		time.Now().Add(time.Hour*24), // Our JWT expiry, e.g., 24 hours
+	)
 	if err != nil {
-		return nil, "", time.Time{}, fmt.Errorf("failed to save messier token: %w", err)
+		return nil, "", time.Time{}, fmt.Errorf("failed to create internal JWT: %w", err)
 	}
 
 	return &responses.LoginResponse{
-			UserID:   meResp.UserID,
-			Username: meResp.Username,
-			Name:     meResp.Name,
-			Role:     meResp.Role.String(),
-		},
-		selfToken,
-		time.Now().Add(time.Duration(logOnResp.ExpiresIn) * time.Second),
-		nil
+		UserID:   internalUser.ID.String(),
+		Username: internalUser.Username,
+		Name:     internalUser.Name,
+		Role:     internalUser.Role.String(),
+	}, selfToken, time.Now().Add(time.Hour * 24), nil
 }
 
 func (s *userService) LoginStudent(ctx context.Context, req *requests.LoginRequest) (*responses.LoginResponse, string, time.Time, error) {
+	var (
+		messierAccessToken  string
+		messierTokenExpires time.Time
+		logOnResp           *log_on.LogOnStudentResponse
+		err                 error
+	)
 
-	// Pake Login Student dlu
-	logOnResp, err := s.labLogOnSvc.LogOnStudent(ctx, req.Username, req.Password)
+	// 1. Try to find existing MessierToken in DB
+	internalUser, err := s.userRepo.GetUserByUsername(ctx, req.Username)
+	if err != nil {
+		return nil, "", time.Time{}, fmt.Errorf("failed to look up internal user by username: %w", err)
+	}
 
+	logOnResp, err = s.labLogOnSvc.LogOnStudent(ctx, req.Username, req.Password)
 	if err != nil {
 		return nil, "", time.Time{}, fmt.Errorf("failed to log on student: %w", err)
 	}
+	messierAccessToken = logOnResp.Token.Token
+	messierTokenExpires = logOnResp.Token.Expires
+	log.Printf("Successfully obtained new Messier token for student %s", req.Username)
 
-	selfToken, err := jwt.CreateJWT(
-		logOnResp.Student.UserID.String(),
-		logOnResp.Student.UserName,
-		logOnResp.Student.Name,
-		model.RoleStudent,
-		logOnResp.Token.Expires,
-	)
-
-	err = s.messierTokenRepo.Save(ctx, &model.MessierToken{
-		UserID:              logOnResp.Student.UserID.String(),
-		MessierAccessToken:  logOnResp.Token.Token,
-		MessierTokenExpires: logOnResp.Token.Expires,
-	})
-
-	if err != nil {
-		return nil, "", time.Time{}, fmt.Errorf("failed to save messier token: %w", err)
+	// 3. Upsert/Update User record in our DB
+	userRole := model.RoleStudent // Students always have RoleStudent
+	if internalUser == nil {
+		internalUser = &model.User{
+			ID:        uuid.New(),
+			Username:  logOnResp.Student.UserName,
+			Name:      logOnResp.Student.Name,
+			Role:      userRole,
+			CreatedAt: time.Now(),
+		}
+		log.Printf("Creating new internal student record for %s", internalUser.Username)
+	} else {
+		if internalUser.Name != logOnResp.Student.Name || internalUser.Role != userRole {
+			internalUser.Name = logOnResp.Student.Name
+			internalUser.Role = userRole
+			log.Printf("Updating existing internal student record for %s", internalUser.Username)
+		} else {
+			log.Printf("Internal student record for %s is up-to-date.", internalUser.Username)
+		}
 	}
 
-	// Di titik ini berarti udah berhasil dapetin data user, tinggal disesuain aja datanya trus balikin
+	if err := s.userRepo.Save(ctx, internalUser); err != nil {
+		return nil, "", time.Time{}, fmt.Errorf("failed to save/update internal user record: %w", err)
+	}
+
+	// 4. Save/Update Messier token in our DB
+	messierTokenRecord := &model.MessierToken{
+		UserID:              internalUser.ID.String(),
+		MessierAccessToken:  messierAccessToken,
+		MessierTokenExpires: messierTokenExpires,
+	}
+	if err := s.messierTokenRepo.Save(ctx, messierTokenRecord); err != nil {
+		return nil, "", time.Time{}, fmt.Errorf("failed to save messier token to DB: %w", err)
+	}
+
+	// 5. Create and return our internal JWT
+	selfToken, err := jwt.CreateJWT(
+		internalUser.ID.String(),
+		internalUser.Username,
+		internalUser.Name,
+		internalUser.Role,
+		time.Now().Add(time.Hour*24), // Our JWT expiry, e.g., 24 hours
+	)
+	if err != nil {
+		return nil, "", time.Time{}, fmt.Errorf("failed to create internal JWT: %w", err)
+	}
+
 	return &responses.LoginResponse{
-			UserID:   logOnResp.Student.UserID.String(),
-			Username: logOnResp.Student.UserName,
-			Name:     logOnResp.Student.Name,
-			Role:     model.RoleStudent.String(),
-		},
-		selfToken,
-		logOnResp.Token.Expires,
-		nil
+		UserID:   internalUser.ID.String(),
+		Username: internalUser.Username,
+		Name:     internalUser.Name,
+		Role:     internalUser.Role.String(),
+	}, selfToken, time.Now().Add(time.Hour * 24), nil
 }
 
 // GetUserProfile retrieves user profile by ID from the internal database.
