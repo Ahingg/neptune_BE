@@ -5,6 +5,7 @@ import (
 	classHand "neptune/backend/handlers/class"
 	contestHandler "neptune/backend/handlers/contest"
 	"neptune/backend/handlers/semester"
+	"neptune/backend/handlers/test_case"
 	userHand "neptune/backend/handlers/user"
 	"neptune/backend/messier/auth/log_on"
 	"neptune/backend/messier/auth/me"
@@ -15,11 +16,13 @@ import (
 	contestRepository "neptune/backend/repositories/contest"
 	"neptune/backend/repositories/messier_token"
 	internalSemesterRepo "neptune/backend/repositories/semester"
+	testCaseRepo "neptune/backend/repositories/test_case"
 	userRepo "neptune/backend/repositories/user"
 	caseService "neptune/backend/services/case"
 	contestService "neptune/backend/services/contest"
 	"neptune/backend/services/internal_class"
 	"neptune/backend/services/internal_semester"
+	testCaseServ "neptune/backend/services/test_case"
 	userService "neptune/backend/services/user"
 
 	"gorm.io/gorm"
@@ -31,6 +34,7 @@ type HandlerContainer struct {
 	ClassHandler            classHand.ClassHandler
 	CaseHandler             caseHandler.CaseHandler
 	ContestHandler          contestHandler.ContestHandler
+	TestCaseHandler         testCaseHand.TestCaseHandler
 }
 
 func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
@@ -66,11 +70,17 @@ func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
 	contestServ := contestService.NewContestService(contestRepo, caseRepo)
 	contestHand := contestHandler.NewContestHandler(contestServ)
 
+	// test_case
+	testCaseRepository := testCaseRepo.NewTestCaseRepository(db)
+	testCaseService := testCaseServ.NewTestCaseService(testCaseRepository, caseRepo)
+	testCaseHandler := testCaseHand.NewTestCaseHandler(testCaseService, caseServ)
+
 	return &HandlerContainer{
 		UserHandler:             *userHandler,
 		InternalSemesterHandler: *internalSemesterHandler,
 		ClassHandler:            *classHandler,
 		CaseHandler:             *caseHand,
 		ContestHandler:          *contestHand,
+		TestCaseHandler:         *testCaseHandler,
 	}
 }

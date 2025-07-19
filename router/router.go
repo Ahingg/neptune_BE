@@ -5,6 +5,7 @@ import (
 	"neptune/backend/handlers/class"
 	contestHandler "neptune/backend/handlers/contest"
 	"neptune/backend/handlers/semester"
+	testCaseHand "neptune/backend/handlers/test_case"
 	userHand "neptune/backend/handlers/user"
 	"neptune/backend/models/user"
 	"neptune/backend/pkg/middleware"
@@ -16,8 +17,9 @@ import (
 func NewRouter(userHandler *userHand.UserHandler,
 	semesterHandler *semester.SemesterHandler,
 	classHandler *class.ClassHandler,
-	contestHandler *contestHandler.ContestHandler, // NEW
+	contestHandler *contestHandler.ContestHandler,
 	caseHandler *caseHandler.CaseHandler,
+	testCaseHandler *testCaseHand.TestCaseHandler,
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
@@ -36,6 +38,8 @@ func NewRouter(userHandler *userHand.UserHandler,
 	})
 
 	r.Static("/public/cases", "./public/case_file") // Serve static files from the public directory
+	// Serve private test cases
+
 	// Public auth routes
 	authGroup := r.Group("/auth")
 	{
@@ -85,20 +89,10 @@ func NewRouter(userHandler *userHand.UserHandler,
 		adminGroup.POST("/cases", caseHandler.CreateCase)
 		adminGroup.PUT("/cases/:caseId", caseHandler.UpdateCase)
 		adminGroup.DELETE("/cases/:caseId", caseHandler.DeleteCase)
-	}
 
-	assistantGroup := r.Group("/assistant")
-	assistantGroup.Use(middleware.RequireAuth(), middleware.RequireRole(user.RoleAssistant, user.RoleAdmin))
-	{
-		// TODO: Implement assistant-specific routes
-
-	}
-
-	studentGroup := r.Group("/student")
-	studentGroup.Use(middleware.RequireAuth(), middleware.RequireRole(user.RoleStudent))
-	{
-		// TODO: Implement student-specific routes
-		studentGroup.GET("/classes/detail", classHandler.GetClassDetailBySemesterCourseAndStudentHandler)
+		adminGroup.POST("/cases/:case_id/test-cases", testCaseHandler.UploadTestCasesHandler)
+		adminGroup.GET("/cases/:case_id/test-cases", testCaseHandler.GetTestCasesByCaseIDHandler)
+		adminGroup.Static("/private/test_case", "./private/test_case")
 	}
 
 	return r

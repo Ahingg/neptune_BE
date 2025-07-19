@@ -4,6 +4,7 @@ import (
 	models "neptune/backend/models/class"
 	contestModel "neptune/backend/models/contest"
 	semester "neptune/backend/models/semester"
+	testCaseModel "neptune/backend/models/test_case"
 	"neptune/backend/models/user"
 	"neptune/backend/pkg/container"
 	"neptune/backend/pkg/database"
@@ -37,6 +38,7 @@ func main() {
 		&models.Class{},
 		&contestModel.Contest{},
 		&contestModel.Case{},
+		&testCaseModel.TestCase{},
 		&models.ClassStudent{},
 		&models.ClassAssistant{},
 		&contestModel.ContestCase{}, // NEW: Migrate ContestCase (FKs to Contest and Case)
@@ -52,6 +54,7 @@ func main() {
 		&(handlerContainer.ClassHandler),
 		&(handlerContainer.ContestHandler),
 		&(handlerContainer.CaseHandler),
+		&(handlerContainer.TestCaseHandler),
 	)
 
 	port := os.Getenv("PORT")
