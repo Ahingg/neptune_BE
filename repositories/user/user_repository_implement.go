@@ -5,7 +5,9 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	model "neptune/backend/models/user"
+	"time"
 )
 
 type userRepository struct {
@@ -17,6 +19,21 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{
 		db: db,
 	}
+}
+
+func (r *userRepository) Save(ctx context.Context, user *model.User) error {
+	if user.ID == uuid.Nil {
+		user.ID = uuid.New()
+	}
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"name":       user.Name,
+			"role":       user.Role,
+			"username":   user.Username,
+			"updated_at": time.Now(),
+		}),
+	}).Create(user).Error
 }
 
 // GetUserByUsername retrieves a user by their username
