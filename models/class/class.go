@@ -20,6 +20,7 @@ type ClassStudent struct {
 	ClassTransactionID uuid.UUID `gorm:"not null;uniqueIndex:idx_class_student_assignment,priority:1"`           // Foreign key to the Class table
 	UserID             uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_class_student_assignment,priority:2"` // Foreign key to the User table
 	User               user.User `gorm:"foreignKey:UserID"`
+	Class              Class     `gorm:"foreignKey:ClassTransactionID"`
 }
 
 type ClassAssistant struct {

@@ -14,4 +14,5 @@ type UserService interface {
 	LoginStudent(ctx context.Context, req *requests.LoginRequest) (*responses.LoginResponse, string, time.Time, error)
 	GetUserProfile(ctx context.Context, userID uuid.UUID) (*model.User, error)
 	DeleteUserAccessToken(ctx context.Context, userID string) error
+	GetDetailedUserProfile(ctx context.Context, userID uuid.UUID) (*responses.UserMeResponse, error)
 }

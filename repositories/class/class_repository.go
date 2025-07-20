@@ -19,4 +19,5 @@ type ClassRepository interface {
 	FindClassByTransactionID(ctx context.Context, classTransactionID string) (*models.Class, error)
 	FindClassBasicInfoBySemesterAndCourse(ctx context.Context, semesterID, courseOutlineID string) ([]models.Class, error)
 	FindClassBySemesterCourseAndStudent(ctx context.Context, semesterID, courseOutlineID, userID string) ([]models.Class, error)
+	FindClassesByUserID(ctx context.Context, userID uuid.UUID) ([]models.ClassStudent, error)
 }

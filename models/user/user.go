@@ -32,4 +32,5 @@ type User struct {
 	Name      string    `gorm:"not null"`
 	Role      Role      `gorm:"not null"` // Assistant, SubDev, Student, Lecturer
 	CreatedAt time.Time
+	UpdatedAt time.Time
 }

@@ -69,40 +69,40 @@ func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
 	if err != nil {
 		panic("Failed to open a channel: " + err.Error())
 	}
-
-	// user
-	userRepository := userRepo.NewUserRepository(db)
+	// repo
 	messierTokenRepository := messier_token.NewMessierTokenRepository(db)
-	userServ := userService.NewUserService(userRepository, logOnService, meService, messierTokenRepository)
-	userHandler := userHand.NewUserHandler(userServ)
+	semesterRepository := internalSemesterRepo.NewSemesterRepository(db)
+	userRepository := userRepo.NewUserRepository(db)
+	classRepo := internalClassRepo.NewClassRepository(db)
+	caseRepo := caseRepository.NewCaseRepository(db)
+	contestRepo := contestRepository.NewContestRepository(db)
+	testCaseRepository := testCaseRepo.NewTestCaseRepository(db)
+	submissionRepository := submissionRepo.NewSubmissionRepository(db)
 
 	// semester
-	semesterRepository := internalSemesterRepo.NewSemesterRepository(db)
 	semesterService := internal_semester.NewSemesterService(semesterRepository, messierSemesterService, messierTokenRepository)
 	internalSemesterHandler := semester.NewSemesterHandler(semesterService)
-
 	// class
-	classRepo := internalClassRepo.NewClassRepository(db)
 	classService := internal_class.NewClassService(messierClassService, classRepo, userRepository, messierTokenRepository)
 	classHandler := classHand.NewClassHandler(classService)
 
+	// user
+	userServ := userService.NewUserService(userRepository, logOnService, meService, messierTokenRepository, classRepo, semesterRepository)
+	userHandler := userHand.NewUserHandler(userServ)
+
 	// case
-	caseRepo := caseRepository.NewCaseRepository(db)
 	caseServ := caseService.NewCaseService(caseRepo)
 	caseHand := caseHandler.NewCaseHandler(caseServ)
 
 	// contest
-	contestRepo := contestRepository.NewContestRepository(db)
 	contestServ := contestService.NewContestService(contestRepo, caseRepo)
 	contestHand := contestHandler.NewContestHandler(contestServ)
 
 	// test_case
-	testCaseRepository := testCaseRepo.NewTestCaseRepository(db)
 	testCaseService := testCaseServ.NewTestCaseService(testCaseRepository, caseRepo)
 	testCaseHandler := testCaseHand.NewTestCaseHandler(testCaseService, caseServ)
 
 	// submission
-	submissionRepository := submissionRepo.NewSubmissionRepository(db)
 	submissionService := submissionServ.NewSubmissionService(submissionRepository, testCaseRepository, ch, judge0client, webSocketServ)
 	submissionHandler := submissionHand.NewSubmissionHandler(submissionService)
 

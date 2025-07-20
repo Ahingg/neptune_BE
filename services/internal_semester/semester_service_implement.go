@@ -6,6 +6,7 @@ import (
 	"log"
 	messierSemester "neptune/backend/messier/semester"
 	model "neptune/backend/models/semester"
+	"neptune/backend/pkg/responses"
 	messierTokenRepo "neptune/backend/repositories/messier_token"
 	"neptune/backend/repositories/semester"
 	"time"
@@ -17,7 +18,7 @@ type semesterService struct {
 	messierTokenRepository  messierTokenRepo.MessierTokenRepository
 }
 
-func (s semesterService) SyncSemester(ctx context.Context, requestMakerID string) error {
+func (s *semesterService) SyncSemester(ctx context.Context, requestMakerID string) error {
 	log.Printf("Starting semester sync for user: %s", requestMakerID)
 
 	adminToken, err := s.messierTokenRepository.GetMessierTokenByUserID(ctx, requestMakerID)
@@ -79,15 +80,42 @@ func (s semesterService) SyncSemester(ctx context.Context, requestMakerID string
 	return nil
 }
 
-func (s semesterService) GetInternalSemesters(ctx context.Context) ([]model.Semester, error) {
+func (s *semesterService) GetInternalSemesters(ctx context.Context) ([]responses.SemesterResponse, error) {
 	log.Printf("Getting internal semesters from database")
 	semesters, err := s.semesterRepository.FindAll(ctx)
 	if err != nil {
 		log.Printf("Failed to retrieve semesters from internal DB: %v", err)
 		return nil, fmt.Errorf("failed to retrieve semesters from internal DB: %w", err)
 	}
+
 	log.Printf("Successfully retrieved %d semesters from internal DB", len(semesters))
-	return semesters, nil
+
+	semResponses := make([]responses.SemesterResponse, len(semesters))
+	for i, sem := range semesters {
+		semResponses[i] = responses.SemesterResponse{
+			SemesterID:  sem.ID,
+			Description: sem.Description,
+			Start:       sem.Start,
+			End:         sem.End, // This will be nil if End is not set in the DB
+		}
+		log.Printf("Semester %d: ID=%s, Description=%s", i+1, sem.ID, sem.Description)
+	}
+	return semResponses, nil
+}
+
+func (s *semesterService) GetCurrentSemester(ctx context.Context) (*responses.SemesterResponse, error) {
+	currSemester, err := s.semesterRepository.FindCurrentSemester(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve current semester: %w", err)
+	}
+
+	semResponse := &responses.SemesterResponse{
+		SemesterID:  currSemester.ID,
+		Description: currSemester.Description,
+		Start:       currSemester.Start,
+		End:         currSemester.End,
+	}
+	return semResponse, nil
 }
 
 func NewSemesterService(semesterRepo semester.SemesterRepository,

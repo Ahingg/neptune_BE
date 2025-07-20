@@ -1,8 +1,11 @@
 package user
 
 import (
+	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"log"
 	"neptune/backend/pkg/requests"
 	"neptune/backend/pkg/responses"
 	"neptune/backend/pkg/utils"
@@ -68,24 +71,32 @@ func (handler *UserHandler) LoginHandler(c *gin.Context) {
 }
 
 func (handler *UserHandler) MeHandler(c *gin.Context) {
-	username := c.GetString("username")
-	userID := c.GetString("user_id")
-	role := c.GetString("role")
-	name := c.GetString("name")
-	fmt.Println(username, userID, role, name)
-	if username == "" || userID == "" || role == "" || name == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Missing user information"})
+	userIDStr, exists := c.Get("user_id") // Assuming your middleware sets "userID"
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: User ID not found in context"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Error: Invalid user ID format in context"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"user": gin.H{
-			"id":       userID,
-			"username": username,
-			"name":     name,
-			"role":     role,
-		},
-	})
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	meResp, err := handler.service.GetDetailedUserProfile(ctx, userID)
+	if err != nil {
+		log.Printf("Error getting detailed user profile for %s: %v", userID.String(), err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to retrieve user profile: %v", err.Error())})
+		return
+	}
+	if meResp == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User profile not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"user": meResp})
 }
 
 func (handler *UserHandler) LogOutHandler(c *gin.Context) {

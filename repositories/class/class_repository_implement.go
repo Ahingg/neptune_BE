@@ -14,7 +14,7 @@ type classRepositoryImplement struct {
 	db *gorm.DB
 }
 
-func (c classRepositoryImplement) AddClassStudents(ctx context.Context, classTransactionID string, studentUserIDs []uuid.UUID) error {
+func (c *classRepositoryImplement) AddClassStudents(ctx context.Context, classTransactionID string, studentUserIDs []uuid.UUID) error {
 	if len(studentUserIDs) == 0 {
 		return nil
 	}
@@ -32,7 +32,7 @@ func (c classRepositoryImplement) AddClassStudents(ctx context.Context, classTra
 	return c.db.WithContext(ctx).Create(&classStudents).Error
 }
 
-func (c classRepositoryImplement) AddClassAssistants(ctx context.Context, classTransactionID string, assistantUserIDs []uuid.UUID) error {
+func (c *classRepositoryImplement) AddClassAssistants(ctx context.Context, classTransactionID string, assistantUserIDs []uuid.UUID) error {
 	if len(assistantUserIDs) == 0 {
 		return nil
 	}
@@ -50,15 +50,15 @@ func (c classRepositoryImplement) AddClassAssistants(ctx context.Context, classT
 	return c.db.WithContext(ctx).Create(&classAssistants).Error
 }
 
-func (c classRepositoryImplement) ClearClassStudents(ctx context.Context, classTransactionID string) error {
+func (c *classRepositoryImplement) ClearClassStudents(ctx context.Context, classTransactionID string) error {
 	return c.db.WithContext(ctx).Where("class_transaction_id = ?", classTransactionID).Delete(&models.ClassStudent{}).Error
 }
 
-func (c classRepositoryImplement) ClearClassAssistants(ctx context.Context, classTransactionID string) error {
+func (c *classRepositoryImplement) ClearClassAssistants(ctx context.Context, classTransactionID string) error {
 	return c.db.WithContext(ctx).Where("class_transaction_id = ?", classTransactionID).Delete(&models.ClassAssistant{}).Error
 }
 
-func (c classRepositoryImplement) FindClassByTransactionID(ctx context.Context, classTransactionID string) (*models.Class, error) {
+func (c *classRepositoryImplement) FindClassByTransactionID(ctx context.Context, classTransactionID string) (*models.Class, error) {
 	var class models.Class
 	result := c.db.WithContext(ctx).
 		Preload("Students.User").
@@ -74,7 +74,7 @@ func (c classRepositoryImplement) FindClassByTransactionID(ctx context.Context, 
 	return &class, nil
 }
 
-func (c classRepositoryImplement) FindClassBasicInfoBySemesterAndCourse(ctx context.Context, semesterID, courseOutlineID string) ([]models.Class, error) {
+func (c *classRepositoryImplement) FindClassBasicInfoBySemesterAndCourse(ctx context.Context, semesterID, courseOutlineID string) ([]models.Class, error) {
 	var classes []models.Class
 	result := c.db.WithContext(ctx).
 		Select("class_transaction_id", "semester_id", "course_outline_id", "class_code").
@@ -87,7 +87,7 @@ func (c classRepositoryImplement) FindClassBasicInfoBySemesterAndCourse(ctx cont
 	return classes, nil
 }
 
-func (c classRepositoryImplement) SaveClass(ctx context.Context, class *models.Class) error {
+func (c *classRepositoryImplement) SaveClass(ctx context.Context, class *models.Class) error {
 	return c.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "class_transaction_id"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{
@@ -98,7 +98,7 @@ func (c classRepositoryImplement) SaveClass(ctx context.Context, class *models.C
 	}).Create(class).Error
 }
 
-func (c classRepositoryImplement) FindAllClassesBySemesterAndCourse(ctx context.Context, semesterId string, courseId string) ([]models.Class, error) {
+func (c *classRepositoryImplement) FindAllClassesBySemesterAndCourse(ctx context.Context, semesterId string, courseId string) ([]models.Class, error) {
 	var classes []models.Class
 	result := c.db.WithContext(ctx).
 		Preload("Students.User").
@@ -112,7 +112,7 @@ func (c classRepositoryImplement) FindAllClassesBySemesterAndCourse(ctx context.
 	return classes, nil
 }
 
-func (c classRepositoryImplement) FindFirstStudentByClassTransactionID(ctx context.Context, classTransactionID string) (*models.ClassStudent, error) {
+func (c *classRepositoryImplement) FindFirstStudentByClassTransactionID(ctx context.Context, classTransactionID string) (*models.ClassStudent, error) {
 	var classStudent models.ClassStudent
 	result := c.db.WithContext(ctx).
 		Where("class_transaction_id = ?", classTransactionID).
@@ -127,7 +127,7 @@ func (c classRepositoryImplement) FindFirstStudentByClassTransactionID(ctx conte
 	return &classStudent, nil
 }
 
-func (c classRepositoryImplement) FindClassBySemesterCourseAndStudent(ctx context.Context, semesterID, courseOutlineID, userID string) ([]models.Class, error) {
+func (c *classRepositoryImplement) FindClassBySemesterCourseAndStudent(ctx context.Context, semesterID, courseOutlineID, userID string) ([]models.Class, error) {
 	var classes []models.Class
 	result := c.db.WithContext(ctx).
 		Preload("Students.User").
@@ -141,6 +141,19 @@ func (c classRepositoryImplement) FindClassBySemesterCourseAndStudent(ctx contex
 		return nil, fmt.Errorf("failed to retrieve classes for semester %s, course %s, and user %s: %w", semesterID, courseOutlineID, userID, result.Error)
 	}
 	return classes, nil
+}
+
+func (c *classRepositoryImplement) FindClassesByUserID(ctx context.Context, userID uuid.UUID) ([]models.ClassStudent, error) {
+	var classStudents []models.ClassStudent
+	result := c.db.WithContext(ctx).
+		Preload("Class"). // Crucially preload the associated Class model
+		Where("user_id = ?", userID).
+		Find(&classStudents)
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to find classes for user ID %s: %w", userID.String(), result.Error)
+	}
+	return classStudents, nil
 }
 
 func NewClassRepository(db *gorm.DB) ClassRepository {
