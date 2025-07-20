@@ -11,7 +11,9 @@ import (
 	"neptune/backend/pkg/jwt"
 	"neptune/backend/pkg/requests"
 	"neptune/backend/pkg/responses"
+	classRepository "neptune/backend/repositories/class"
 	messierTokenRepo "neptune/backend/repositories/messier_token"
+	"neptune/backend/repositories/semester"
 	userRepo "neptune/backend/repositories/user"
 	"os"
 	"strings"
@@ -20,9 +22,11 @@ import (
 
 type userService struct {
 	userRepo         userRepo.UserRepository
-	labLogOnSvc      log_on.LogOnService                     // Service to handle Lab API authentication
-	labMeSvc         me.MeService                            // Service to handle Lab API user profile
-	messierTokenRepo messierTokenRepo.MessierTokenRepository // Repository for Messier tokens
+	labLogOnSvc      log_on.LogOnService // Service to handle Lab API authentication
+	labMeSvc         me.MeService        // Service to handle Lab API user profile
+	messierTokenRepo messierTokenRepo.MessierTokenRepository
+	classRepo        classRepository.ClassRepository
+	semesterRepo     semester.SemesterRepository // Repository for Messier tokens
 }
 
 // NewUserService creates a new instance of UserService
@@ -30,14 +34,48 @@ func NewUserService(
 	userRepo userRepo.UserRepository,
 	labLogOnSvc log_on.LogOnService,
 	labMeSvc me.MeService,
-	messierTokenRepository messierTokenRepo.MessierTokenRepository, // Assuming you have a MessierTokenRepository
+	messierTokenRepository messierTokenRepo.MessierTokenRepository,
+	classRepo classRepository.ClassRepository,
+	semesterRepo semester.SemesterRepository,
 ) UserService {
 	return &userService{
 		userRepo:         userRepo,
 		labLogOnSvc:      labLogOnSvc,
 		labMeSvc:         labMeSvc,
 		messierTokenRepo: messierTokenRepository,
+		classRepo:        classRepo,
+		semesterRepo:     semesterRepo,
 	}
+}
+
+func (s *userService) getUserEnrollmentsInCurrentSemester(ctx context.Context, userID uuid.UUID) ([]responses.UserEnrollmentDetail, error) {
+	classStudents, err := s.classRepo.FindClassesByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve enrollments for user %s: %w", userID.String(), err)
+	}
+
+	currentSemester, err := s.semesterRepo.FindCurrentSemester(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve current semester: %w", err)
+	}
+
+	var enrollments []responses.UserEnrollmentDetail
+	for _, cs := range classStudents {
+		// Ensure Class association was loaded and is not a zero value (if PK is UUID)
+		// Assuming Class.ExternalClassTransactionID is a uuid.UUID, its zero value is uuid.Nil
+		if cs.Class.ClassTransactionID.String() != uuid.Nil.String() && cs.Class.SemesterID.String() == currentSemester.ID {
+			enrollments = append(enrollments, responses.UserEnrollmentDetail{
+				ClassTransactionID: cs.Class.ClassTransactionID.String(),
+				ClassName:          cs.Class.ClassCode,
+				CourseOutlineID:    cs.Class.CourseOutlineID.String(), // Convert UUID to string for DTO
+				SemesterID:         cs.Class.SemesterID.String(),      // Convert UUID to string for DTO
+			})
+		} else if cs.Class.ClassTransactionID.String() == uuid.Nil.String() {
+			// This might indicate a problem with preloading or data inconsistency
+			log.Printf("Warning: Class association not loaded for ClassStudent ID %d (user %s)", cs.ClassTransactionID, userID.String())
+		}
+	}
+	return enrollments, nil
 }
 
 func (s *userService) LoginAssistant(ctx context.Context, req *requests.LoginRequest) (*responses.LoginResponse, string, time.Time, error) {
@@ -138,6 +176,12 @@ func (s *userService) LoginAssistant(ctx context.Context, req *requests.LoginReq
 		return nil, "", time.Time{}, fmt.Errorf("failed to save messier token to DB: %w", err)
 	}
 
+	enrollments, err := s.getUserEnrollmentsInCurrentSemester(ctx, internalUser.ID)
+	if err != nil {
+		log.Printf("Warning: Could not fetch enrollments for user %s: %v", internalUser.Username, err)
+		// Don't fail login, but log the issue if enrollments can't be fetched
+	}
+
 	// 6. Create and return our internal JWT
 	selfToken, err := jwt.CreateJWT(
 		internalUser.ID.String(), // Use internal UserID for our JWT
@@ -151,10 +195,11 @@ func (s *userService) LoginAssistant(ctx context.Context, req *requests.LoginReq
 	}
 
 	return &responses.LoginResponse{
-		UserID:   internalUser.ID.String(),
-		Username: internalUser.Username,
-		Name:     internalUser.Name,
-		Role:     internalUser.Role.String(),
+		UserID:      internalUser.ID.String(),
+		Username:    internalUser.Username,
+		Name:        internalUser.Name,
+		Role:        internalUser.Role.String(),
+		Enrollments: enrollments,
 	}, selfToken, time.Now().Add(time.Hour * 24), nil
 }
 
@@ -215,6 +260,10 @@ func (s *userService) LoginStudent(ctx context.Context, req *requests.LoginReque
 		return nil, "", time.Time{}, fmt.Errorf("failed to save messier token to DB: %w", err)
 	}
 
+	enrollments, err := s.getUserEnrollmentsInCurrentSemester(ctx, internalUser.ID)
+	if err != nil {
+		log.Printf("Warning: Could not fetch enrollments for user %s: %v", internalUser.Username, err)
+	}
 	// 5. Create and return our internal JWT
 	selfToken, err := jwt.CreateJWT(
 		internalUser.ID.String(),
@@ -228,10 +277,11 @@ func (s *userService) LoginStudent(ctx context.Context, req *requests.LoginReque
 	}
 
 	return &responses.LoginResponse{
-		UserID:   internalUser.ID.String(),
-		Username: internalUser.Username,
-		Name:     internalUser.Name,
-		Role:     internalUser.Role.String(),
+		UserID:      internalUser.ID.String(),
+		Username:    internalUser.Username,
+		Name:        internalUser.Name,
+		Role:        internalUser.Role.String(),
+		Enrollments: enrollments,
 	}, selfToken, time.Now().Add(time.Hour * 24), nil
 }
 
@@ -245,6 +295,31 @@ func (s *userService) GetUserProfile(ctx context.Context, userID uuid.UUID) (*mo
 		return nil, fmt.Errorf("user not found")
 	}
 	return u, nil
+}
+
+func (s *userService) GetDetailedUserProfile(ctx context.Context, userID uuid.UUID) (*responses.UserMeResponse, error) {
+	internalUser, err := s.userRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user by ID %s: %w", userID.String(), err)
+	}
+	if internalUser == nil {
+		return nil, nil // User not found
+	}
+
+	// Fetch enrollments for the user
+	enrollments, err := s.getUserEnrollmentsInCurrentSemester(ctx, userID)
+	if err != nil {
+		log.Printf("Warning: Could not fetch enrollments for user %s during MeHandler: %v", internalUser.Username, err)
+		// Don't fail the MeHandler, but log the issue
+	}
+
+	return &responses.UserMeResponse{
+		ID:          internalUser.ID.String(),
+		Username:    internalUser.Username,
+		Name:        internalUser.Name,
+		Role:        internalUser.Role.String(),
+		Enrollments: enrollments,
+	}, nil
 }
 
 func (s *userService) DeleteUserAccessToken(ctx context.Context, userID string) error {

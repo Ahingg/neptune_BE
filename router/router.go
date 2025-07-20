@@ -27,8 +27,8 @@ func NewRouter(userHandler *userHand.UserHandler,
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
@@ -41,7 +41,7 @@ func NewRouter(userHandler *userHand.UserHandler,
 		})
 	})
 
-	r.Static("/public/cases", "./public/case_file") // Serve static files from the public directory
+	r.Static("/public/case_file", "./public/case_file") // Serve static files from the public directory
 	// Serve private test cases
 
 	// Public auth routes
@@ -56,6 +56,7 @@ func NewRouter(userHandler *userHand.UserHandler,
 	authRestrictedGroup.Use(middleware.RequireAuth())
 	{
 		authRestrictedGroup.GET("/semesters", semesterHandler.GetSemestersHandler)
+		authRestrictedGroup.GET("/semesters/current", semesterHandler.GetCurrentSemesterHandler)
 
 		// Class routes
 		authRestrictedGroup.GET("/debug-semesters", semesterHandler.DebugSemestersHandler)

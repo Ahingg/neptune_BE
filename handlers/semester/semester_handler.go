@@ -1,10 +1,13 @@
 package semester
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"neptune/backend/pkg/responses"
 	"neptune/backend/services/internal_semester"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -58,7 +61,7 @@ func (h *SemesterHandler) GetSemestersHandler(c *gin.Context) {
 
 	fmt.Printf("Found %d semesters in database\n", len(semesters))
 	for i, s := range semesters {
-		fmt.Printf("Semester %d: ID=%s, Description=%s\n", i+1, s.ID, s.Description)
+		fmt.Printf("Semester %d: ID=%s, Description=%s\n", i+1, s.SemesterID, s.Description)
 	}
 
 	// Transform model.Semester to your desired GetSemestersResponse format
@@ -69,13 +72,30 @@ func (h *SemesterHandler) GetSemestersHandler(c *gin.Context) {
 		responseSemesters[i] = responses.SemesterResponse{
 			Description: s.Description,
 			End:         s.End, // Direct assignment of *time.Time (will be null if DB is null)
-			SemesterID:  s.ID,
+			SemesterID:  s.SemesterID,
 			Start:       s.Start,
 		}
 	}
 
 	fmt.Printf("Sending %d semesters to frontend\n", len(responseSemesters))
 	c.JSON(http.StatusOK, responseSemesters)
+}
+
+func (h *SemesterHandler) GetCurrentSemesterHandler(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	semester, err := h.internalSemesterService.GetCurrentSemester(ctx)
+	if err != nil {
+		log.Printf("Error getting current semester: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to retrieve current semester: %v", err.Error())})
+		return
+	}
+	if semester == nil {
+		c.JSON(http.StatusNotFound, gin.H{"message": "No current semester found"})
+		return
+	}
+	c.JSON(http.StatusOK, semester)
 }
 
 // DebugSemestersHandler is a temporary debug endpoint to check database state

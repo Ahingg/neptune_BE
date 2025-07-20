@@ -21,6 +21,8 @@ type ClassContestAssignmentResponse struct {
 	EndTime            time.Time `json:"end_time"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
+
+	Contest ContestResponse `json:"contest"`
 }
 
 type ContestCaseProblemResponse struct {
@@ -38,6 +40,5 @@ type ContestDetailResponse struct {
 	Description string                       `json:"description"`
 	Scope       string                       `json:"scope"` // e.g., "public", "class"
 	CreatedAt   time.Time                    `json:"created_at"`
-	UpdatedAt   time.Time                    `json:"updated_at"`
 	Cases       []ContestCaseProblemResponse `json:"cases"`
 }

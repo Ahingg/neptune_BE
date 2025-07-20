@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	model "neptune/backend/models/semester"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -53,6 +54,24 @@ func (s *semesterRepository) GetSemesterByID(ctx context.Context, semesterID str
 		return model.Semester{}, fmt.Errorf("failed to retrieve internal_semester by ID %s: %w", semesterID, result.Error)
 	}
 	return semester, nil
+}
+
+func (s *semesterRepository) FindCurrentSemester(ctx context.Context) (*model.Semester, error) {
+	var currentSemester model.Semester
+	now := time.Now()
+
+	result := s.db.WithContext(ctx).
+		Where("start <= ? AND (\"end\" IS NULL OR \"end\" >= ?)", now, now).
+		Order("start DESC").
+		First(&currentSemester)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find current semester: %w", result.Error)
+	}
+	return &currentSemester, nil
 }
 
 func NewSemesterRepository(db *gorm.DB) SemesterRepository {

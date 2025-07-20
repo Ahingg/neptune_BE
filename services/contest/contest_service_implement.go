@@ -58,7 +58,6 @@ func (s *contestServiceImpl) GetContestByID(ctx context.Context, contestID uuid.
 		Scope:       contest.Scope,
 		Description: contest.Description,
 		CreatedAt:   contest.CreatedAt,
-		UpdatedAt:   contest.UpdatedAt,
 	}
 
 	for _, cc := range contest.ContestCases {
@@ -188,6 +187,7 @@ func (s *contestServiceImpl) GetContestsForClass(ctx context.Context, classTrans
 
 	resp := make([]responses.ClassContestAssignmentResponse, len(classContests))
 	for i, cc := range classContests {
+
 		resp[i] = responses.ClassContestAssignmentResponse{
 			ClassTransactionID: cc.ClassTransactionID,
 			ContestID:          cc.ContestID,
@@ -195,6 +195,13 @@ func (s *contestServiceImpl) GetContestsForClass(ctx context.Context, classTrans
 			EndTime:            cc.EndTime,
 			CreatedAt:          cc.CreatedAt,
 			UpdatedAt:          cc.UpdatedAt,
+			Contest: responses.ContestResponse{
+				ID:          cc.Contest.ID,
+				Name:        cc.Contest.Name,
+				Scope:       cc.Contest.Scope,
+				Description: cc.Contest.Description,
+				CreatedAt:   cc.Contest.CreatedAt,
+			},
 		}
 	}
 	return resp, nil
