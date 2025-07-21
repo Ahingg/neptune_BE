@@ -4,6 +4,7 @@ import (
 	caseHandler "neptune/backend/handlers/case"
 	"neptune/backend/handlers/class"
 	contestHandler "neptune/backend/handlers/contest"
+	"neptune/backend/handlers/language"
 	"neptune/backend/handlers/semester"
 	submissionHand "neptune/backend/handlers/submission"
 	testCaseHand "neptune/backend/handlers/test_case"
@@ -24,6 +25,7 @@ func NewRouter(userHandler *userHand.UserHandler,
 	testCaseHandler *testCaseHand.TestCaseHandler,
 	webSocketHandler *websocketHand.WebSocketHandler,
 	submissionHandler *submissionHand.SubmissionHandler,
+	languageHandler *language.LanguageHandler,
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
@@ -76,6 +78,8 @@ func NewRouter(userHandler *userHand.UserHandler,
 		// Submission routes
 		authRestrictedGroup.POST("/submissions", submissionHandler.SubmitCode)
 		authRestrictedGroup.GET("/ws/submissions/:submissionId", webSocketHandler.HandleSubmissionConnection)
+
+		authRestrictedGroup.GET("/languages", languageHandler.GetSupportedLanguages)
 	}
 
 	adminGroup := r.Group("/admin")
@@ -102,6 +106,7 @@ func NewRouter(userHandler *userHand.UserHandler,
 		adminGroup.POST("/cases/:case_id/test-cases", testCaseHandler.UploadTestCasesHandler)
 		adminGroup.GET("/cases/:case_id/test-cases", testCaseHandler.GetTestCasesByCaseIDHandler)
 		adminGroup.Static("/private/test_case", "./private/test_case")
+
 	}
 
 	return r
