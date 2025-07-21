@@ -45,6 +45,7 @@ func main() {
 		&contestModel.ContestCase{}, // NEW: Migrate ContestCase (FKs to Contest and Case)
 		&contestModel.ClassContest{},
 		&submissionModel.Submission{},
+		&submissionModel.SubmissionResult{},
 	); err != nil {
 		utils.CheckPanic(err)
 	}
@@ -60,6 +61,7 @@ func main() {
 		&(handlerContainer.TestCaseHandler),
 		&(handlerContainer.WebSocketHandler),
 		&(handlerContainer.SubmissionHandler),
+		&(handlerContainer.LanguageHandler),
 	)
 
 	port := os.Getenv("PORT")

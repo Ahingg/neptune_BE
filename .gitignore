@@ -39,5 +39,5 @@ vendor/
 .env
 
 # files
-public/case_file/
+public/
 private/

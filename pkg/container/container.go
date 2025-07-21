@@ -6,6 +6,7 @@ import (
 	caseHandler "neptune/backend/handlers/case"
 	classHand "neptune/backend/handlers/class"
 	contestHandler "neptune/backend/handlers/contest"
+	"neptune/backend/handlers/language"
 	"neptune/backend/handlers/semester"
 	submissionHand "neptune/backend/handlers/submission"
 	"neptune/backend/handlers/test_case"
@@ -46,6 +47,7 @@ type HandlerContainer struct {
 	TestCaseHandler         testCaseHand.TestCaseHandler
 	SubmissionHandler       submissionHand.SubmissionHandler
 	WebSocketHandler        websocketHand.WebSocketHandler
+	LanguageHandler         language.LanguageHandler
 }
 
 func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
@@ -112,6 +114,8 @@ func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
 		}
 	}()
 
+	languageHandler := language.NewLanguageHandler()
+
 	return &HandlerContainer{
 		UserHandler:             *userHandler,
 		InternalSemesterHandler: *internalSemesterHandler,
@@ -121,5 +125,6 @@ func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
 		TestCaseHandler:         *testCaseHandler,
 		WebSocketHandler:        *webSocketHandler,
 		SubmissionHandler:       *submissionHandler,
+		LanguageHandler:         *languageHandler,
 	}
 }

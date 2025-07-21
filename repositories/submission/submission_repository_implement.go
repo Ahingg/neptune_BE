@@ -24,7 +24,7 @@ func (r submissionRepository) Update(ctx context.Context, submission *submission
 	return r.db.WithContext(ctx).Save(submission).Error
 }
 
-func (r submissionRepository) SaveResultsBatch(ctx context.Context, results []*submissionModel.SubmissionResult) error {
+func (r submissionRepository) SaveResultsBatch(ctx context.Context, results []submissionModel.SubmissionResult) error {
 	if len(results) == 0 {
 		return nil
 	}

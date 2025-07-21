@@ -10,6 +10,7 @@ import (
 	submissionModel "neptune/backend/models/submission"
 	"neptune/backend/pkg/amqp_messages"
 	"neptune/backend/pkg/requests"
+	"neptune/backend/pkg/responses"
 	submissionRepo "neptune/backend/repositories/submission"
 	testCaseRepo "neptune/backend/repositories/test_case"
 	judgeServ "neptune/backend/services/judge0"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 type submissionService struct {
@@ -27,33 +29,38 @@ type submissionService struct {
 	webSocketManager     webSocketService.WebSocketService
 }
 
-func (s *submissionService) SubmitCode(ctx context.Context, request *requests.SubmitCodeRequest, userID uuid.UUID) (*submissionModel.Submission, error) {
+func (s *submissionService) SubmitCode(ctx context.Context, req *requests.SubmitCodeRequest, userID uuid.UUID) (*responses.SubmitCodeResponse, error) {
 	submission := &submissionModel.Submission{
 		ID:         uuid.New(),
-		CaseID:     request.CaseID,
+		CaseID:     req.CaseID,
 		UserID:     userID,
-		LanguageID: request.LanguageID,
-		ContestID:  request.ContestID,
-		Status:     submissionModel.SubmissionStatusJudging,
+		LanguageID: req.LanguageID,
+		ContestID:  req.ContestID,
+		Status:     submissionModel.SubmissionStatusJudging, // Start as In Queue
 		Score:      0,
 	}
 
-	submissionDirectory := filepath.Join("private/submissions", submission.ID.String())
-	if err := os.MkdirAll(submissionDirectory, os.ModePerm); err != nil {
-		return nil, err
+	submissionDir := filepath.Join("public/submissions", submission.ID.String())
+	if err := os.MkdirAll(submissionDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create submission directory: %w", err)
 	}
 
-	// TODO: Map LanguageID to a file extension
-	sourcePath := filepath.Join(submissionDirectory, "main.txt")
+	// Use the validated extension from the request struct
+	fileName := "main" + req.FileExtension
+	sourcePath := filepath.Join(submissionDir, fileName)
 	submission.SourceCodePath = "/" + sourcePath // Store URL path
-	if err := os.WriteFile(sourcePath, []byte(request.SourceCode), 0644); err != nil {
+
+	// Use the byte slice from the request struct, which could have come from the string or file
+	if err := os.WriteFile(sourcePath, req.SourceCodeBytes, 0644); err != nil {
 		return nil, fmt.Errorf("failed to write source code: %w", err)
 	}
+
 	// Save initial submission record to DB
 	if err := s.submissionRepository.Save(ctx, submission); err != nil {
 		return nil, fmt.Errorf("failed to save submission record: %w", err)
 	}
 
+	// --- Publish to RabbitMQ (logic remains the same) ---
 	msgBody, err := json.Marshal(amqp_messages.JudgeQueueMessage{SubmissionID: submission.ID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal judge queue message: %w", err)
@@ -69,14 +76,19 @@ func (s *submissionService) SubmitCode(ctx context.Context, request *requests.Su
 			Body:        msgBody,
 		},
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish to judge queue: %w", err)
 	}
 
 	log.Printf("Successfully queued submission %s for judging", submission.ID)
-	return submission, nil
+
+	resp := &responses.SubmitCodeResponse{
+		SubmissionID: submission.ID.String(),
+		Status:       submission.Status.String(),
+	}
+	return resp, nil
 }
+
 func (s *submissionService) StartListeners() error {
 	_, err := s.rabbitChannel.QueueDeclare(amqp_messages.JudgeQueueName, true, false, false, false, nil)
 	if err != nil {
@@ -110,7 +122,7 @@ func (s *submissionService) StartListeners() error {
 	go func() {
 		for d := range resultMsgs {
 			log.Printf("Received result job: %s", d.Body)
-			s.processSubmissionJob(context.Background(), d)
+			s.processResultJob(context.Background(), d)
 		}
 	}()
 
@@ -156,7 +168,14 @@ func (s *submissionService) processSubmissionJob(ctx context.Context, d amqp.Del
 		publishError(submissionModel.SubmissionStatusInternalError)
 		return
 	}
-	s.webSocketManager.SendUpdateToClient(submission.ID, submission)
+
+	resp := responses.FinalResultResponse{
+		SubmissionID: submission.ID.String(),
+		FinalStatus:  submission.Status.String(),
+		TestCases:    []responses.TestCaseJudgeResponse{},
+	}
+
+	s.webSocketManager.SendUpdateToClient(submission.ID, resp)
 
 	testcases, err := s.testCaseRepository.FindTestCaseByCaseID(ctx, submission.CaseID.String())
 	if err != nil {
@@ -275,6 +294,65 @@ func mapJudge0Status(judgeStatusID int, stdout, expectedOutput string) submissio
 	default:
 		return submissionModel.SubmissionStatusInternalError
 	}
+}
+
+func (s *submissionService) processResultJob(ctx context.Context, d amqp.Delivery) {
+	defer d.Ack(false)
+
+	var msg amqp_messages.ResultQueueMessage
+	if err := json.Unmarshal(d.Body, &msg); err != nil {
+		log.Printf("Error unmarshalling result job: %v", err)
+		return
+	}
+
+	// Find the original submission
+	submission, err := s.submissionRepository.FindByID(ctx, msg.SubmissionID.String())
+	if err != nil {
+		log.Printf("Error finding submission %s for final update: %v", msg.SubmissionID, err)
+		return
+	}
+
+	// Update the final status and score
+	submission.Status = msg.FinalStatus
+	submission.Score = msg.Score
+	submission.UpdatedAt = time.Now()
+
+	// Create Response to backend
+
+	// Use a transaction to update submission and save results
+	// tx := s.db.Begin() ... (For simplicity, not showing full transaction code)
+	if err := s.submissionRepository.Update(ctx, submission); err != nil {
+		log.Printf("Error performing final update on submission %s: %v", submission.ID, err)
+		return
+	}
+
+	// Save the detailed per-testcase results
+	if err := s.submissionRepository.SaveResultsBatch(ctx, msg.Results); err != nil {
+		log.Printf("Error saving batch results for submission %s: %v", submission.ID, err)
+		return
+	}
+
+	// Push final result to client via WebSocket
+	testCases := make([]responses.TestCaseJudgeResponse, len(msg.Results))
+	for i, result := range msg.Results {
+		testCases[i] = responses.TestCaseJudgeResponse{
+			Number:         result.TestcaseNumber,
+			Verdict:        result.Status.String(),
+			Input:          result.Input,
+			ExpectedOutput: result.ExpectedOutput,
+			ActualOutput:   result.ActualOutput,
+			TimeMs:         int(result.TimeSeconds * 1000), // Convert seconds to milliseconds
+			MemoryKB:       result.MemoryKB,
+		}
+	}
+
+	finalResultResponse := &responses.FinalResultResponse{
+		SubmissionID: submission.ID.String(),
+		FinalStatus:  submission.Status.String(),
+		TestCases:    testCases,
+	}
+	log.Printf("Pushing final update to WebSocket for submission %s", submission.ID)
+	s.webSocketManager.SendUpdateToClient(submission.ID, finalResultResponse)
 }
 
 func NewSubmissionService(repo submissionRepo.SubmissionRepository,

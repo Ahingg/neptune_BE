@@ -6,7 +6,7 @@ import (
 )
 
 type CaseResponse struct {
-	ID            uuid.UUID `json:"id"`
+	ID            uuid.UUID `json:"case_id"`
 	Name          string    `json:"name"`
 	Description   string    `json:"description"`
 	PDFFileUrl    string    `json:"pdf_file_url"`
