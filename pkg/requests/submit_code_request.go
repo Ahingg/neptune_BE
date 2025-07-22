@@ -106,6 +106,8 @@ func (r *SubmitCodeRequest) ParseAndValidate(c *gin.Context) error {
 	} else {
 		// --- String Logic ---
 		r.SourceCodeBytes = []byte(sourceCodeStr)
+		cleanSourceCode := strings.ReplaceAll(string(r.SourceCodeBytes), "\u00A0", " ")
+		r.SourceCodeBytes = []byte(cleanSourceCode)
 		// Assign default extension
 		r.FileExtension = acceptedExtensions[0]
 	}
