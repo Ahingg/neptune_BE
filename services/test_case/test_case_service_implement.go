@@ -147,7 +147,7 @@ func (s testcaseServiceImpl) UploadTestCases(ctx context.Context, req requests.A
 		// Handle output file: Save with standardized name
 		outputFileName := fmt.Sprintf("t%03d.out", testcaseNum) // e.g., t001.out
 		outputPath := filepath.Join(testcaseNumDir, outputFileName)
-		outputURL := fmt.Sprintf("/private/testcases/%s/%d/%s", req.CaseID.String(), testcaseNum, outputFileName)
+		outputURL := fmt.Sprintf("/private/test_case/%s/%d/%s", req.CaseID.String(), testcaseNum, outputFileName)
 
 		if err := saveZipEntry(entry.OutputFile, outputPath); err != nil {
 			log.Printf("Failed to save output file for testcase %d (%s): %v", testcaseNum, entry.OutputFile.Name, err)

@@ -8,6 +8,7 @@ type SubmitCodeResponse struct {
 type FinalResultResponse struct {
 	SubmissionID string                  `json:"submission_id"` // UUID of the submission
 	FinalStatus  string                  `json:"final_status"`  // Final status of the submission
+	Score        int                     `json:"score"`         // Score of the submission
 	TestCases    []TestCaseJudgeResponse `json:"testcases"`     // List of test case results
 }
 

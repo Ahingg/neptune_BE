@@ -346,13 +346,31 @@ func (s *submissionService) processResultJob(ctx context.Context, d amqp.Deliver
 		}
 	}
 
+	finalScore := getFinalScore(msg.Results)
 	finalResultResponse := &responses.FinalResultResponse{
 		SubmissionID: submission.ID.String(),
 		FinalStatus:  submission.Status.String(),
+		Score:        finalScore,
 		TestCases:    testCases,
 	}
 	log.Printf("Pushing final update to WebSocket for submission %s", submission.ID)
 	s.webSocketManager.SendUpdateToClient(submission.ID, finalResultResponse)
+}
+
+func getFinalScore(results []submissionModel.SubmissionResult) int {
+	if len(results) == 0 {
+		return 0
+	}
+
+	resultCount := len(results)
+	testCaseCorrectCount := 0
+	for _, result := range results {
+		if result.Status == submissionModel.SubmissionStatusAccepted {
+			testCaseCorrectCount++
+		}
+	}
+
+	return int(float64(testCaseCorrectCount) / float64(resultCount) * 100)
 }
 
 func NewSubmissionService(repo submissionRepo.SubmissionRepository,
