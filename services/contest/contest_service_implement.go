@@ -7,6 +7,7 @@ import (
 	contestModel "neptune/backend/models/contest"
 	"neptune/backend/pkg/requests"
 	"neptune/backend/pkg/responses"
+	"neptune/backend/pkg/utils"
 	caseRepository "neptune/backend/repositories/case"
 	contestRepository "neptune/backend/repositories/contest"
 )
@@ -134,12 +135,23 @@ func (s *contestServiceImpl) DeleteContest(ctx context.Context, contestID uuid.U
 func (s *contestServiceImpl) AddCasesToContest(ctx context.Context, contestID uuid.UUID, req requests.AddCasesToContestRequest) error {
 	var contestCases []contestModel.ContestCase
 	for _, problem := range req.Problems {
-		// Optional: Verify CaseID exists using s.caseRepo.FindCaseByID
-		// If a problem code is duplicated, the unique index on (ContestID, CaseID) will prevent it.
+		// Cek apakah case nya beneran ada
+		_, err := s.caseRepo.FindCaseByID(ctx, problem.CaseID)
+		if err != nil {
+			return fmt.Errorf("failed to find case by ID %s: %w", problem.CaseID.String(), err)
+		}
+
+		// If a problem code is duplicated, the unique index on (ContestID, CaseID) will prevent it
+		//caseCode := getProblemCodeByContestCaseCount
+		caseCode, err := s.getProblemCodeByContestCaseCount(contestID)
+		if err != nil {
+			return fmt.Errorf("failed to generate problem code: %w", err)
+		}
+
 		contestCases = append(contestCases, contestModel.ContestCase{
 			ContestID:   contestID,
 			CaseID:      problem.CaseID,
-			ProblemCode: problem.ProblemCode,
+			ProblemCode: caseCode,
 		})
 	}
 
@@ -205,6 +217,17 @@ func (s *contestServiceImpl) GetContestsForClass(ctx context.Context, classTrans
 		}
 	}
 	return resp, nil
+}
+
+func (s *contestServiceImpl) getProblemCodeByContestCaseCount(contestID uuid.UUID) (string, error) {
+	// Get all contest cases for the given contest ID
+	caseCount, err := s.contestRepo.GetCaseCountInContest(context.Background(), contestID)
+	if err != nil {
+		// Handle error (you might want to panic or return a default)
+		return "", err
+	}
+
+	return utils.GenerateAlphabetCode(caseCount), nil
 }
 
 // RemoveContestFromClass removes a contest assignment from a class.

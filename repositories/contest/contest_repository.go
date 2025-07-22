@@ -15,6 +15,8 @@ type ContestRepository interface {
 	// ContestCase (Problems in a Contest) Management
 	AddCasesToContest(ctx context.Context, contestID uuid.UUID, cases []contestModel.ContestCase) error
 	ClearContestCases(ctx context.Context, contestID uuid.UUID) error // Clear all problems for a contest
+	FindContestCases(ctx context.Context, contestID uuid.UUID) ([]contestModel.ContestCase, error)
+	GetCaseCountInContest(ctx context.Context, contestID uuid.UUID) (int, error)
 
 	// ClassContest (Contest Assignment to Class) Management
 	AssignContestToClass(ctx context.Context, classContest *contestModel.ClassContest) error

@@ -74,22 +74,49 @@ func (r *contestRepositoryImpl) DeleteContest(ctx context.Context, contestID uui
 // It clears existing assignments for the given contest before adding new ones.
 func (r *contestRepositoryImpl) AddCasesToContest(ctx context.Context, contestID uuid.UUID, contestCases []contestModel.ContestCase) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Clear existing cases for this contest
-		if err := tx.Where("contest_id = ?", contestID).Delete(&contestModel.ContestCase{}).Error; err != nil {
-			return fmt.Errorf("failed to clear existing contest cases for contest %s: %w", contestID.String(), err)
+		if len(contestCases) == 0 {
+			return nil
 		}
 
-		// Insert new cases
-		if len(contestCases) > 0 {
-			for i := range contestCases {
-				contestCases[i].ContestID = contestID // Ensure FK is set
-			}
-			if err := tx.Create(&contestCases).Error; err != nil {
-				return fmt.Errorf("failed to add cases to contest %s: %w", contestID.String(), err)
+		// Fetch existing (contest_id, case_id) pairs
+		var existing []contestModel.ContestCase
+		if err := tx.
+			Where("contest_id = ? AND case_id IN ?", contestID, getCaseIDs(contestCases)).
+			Find(&existing).Error; err != nil {
+			return fmt.Errorf("failed to check existing cases: %w", err)
+		}
+
+		existingMap := make(map[uuid.UUID]bool)
+		for _, ec := range existing {
+			existingMap[ec.CaseID] = true
+		}
+
+		// Filter out duplicates
+		var filtered []contestModel.ContestCase
+		for _, c := range contestCases {
+			if !existingMap[c.CaseID] {
+				c.ContestID = contestID
+				filtered = append(filtered, c)
 			}
 		}
+
+		if len(filtered) > 0 {
+			if err := tx.Create(&filtered).Error; err != nil {
+				return fmt.Errorf("failed to add filtered cases: %w", err)
+			}
+		}
+
 		return nil
 	})
+}
+
+// helper to extract []uuid.UUID from []ContestCase
+func getCaseIDs(contestCases []contestModel.ContestCase) []uuid.UUID {
+	caseIDs := make([]uuid.UUID, 0, len(contestCases))
+	for _, c := range contestCases {
+		caseIDs = append(caseIDs, c.CaseID)
+	}
+	return caseIDs
 }
 
 // ClearContestCases removes all cases from a contest.
@@ -141,6 +168,31 @@ func (r *contestRepositoryImpl) FindClassContestByIDs(ctx context.Context, class
 		return nil, fmt.Errorf("failed to find class contest for class %s and contest %s: %w", classTransactionID.String(), contestID.String(), result.Error)
 	}
 	return &classContest, nil
+}
+
+// FindContestCases retrieves all cases for a specific contest.
+func (r *contestRepositoryImpl) FindContestCases(ctx context.Context, contestID uuid.UUID) ([]contestModel.ContestCase, error) {
+	var cases []contestModel.ContestCase
+	result := r.db.WithContext(ctx).
+		Preload("Case"). // Preload the Case details
+		Where("contest_id = ?", contestID).
+		Find(&cases)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to find cases for contest %s: %w", contestID.String(), result.Error)
+	}
+	return cases, nil
+}
+
+func (r *contestRepositoryImpl) GetCaseCountInContest(ctx context.Context, contestID uuid.UUID) (int, error) {
+	var count int64
+	result := r.db.WithContext(ctx).
+		Model(&contestModel.ContestCase{}).
+		Where("contest_id = ?", contestID).
+		Count(&count)
+	if result.Error != nil {
+		return 0, fmt.Errorf("failed to count cases in contest %s: %w", contestID.String(), result.Error)
+	}
+	return int(count), nil
 }
 
 // RemoveContestFromClass deletes a contest assignment from a class.
