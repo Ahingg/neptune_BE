@@ -161,6 +161,23 @@ func (s *contestServiceImpl) AddCasesToContest(ctx context.Context, contestID uu
 	return nil
 }
 
+func (s *contestServiceImpl) GetContestCases(ctx context.Context, contestID uuid.UUID) ([]responses.ContestCaseResponse, error) {
+	cases, err := s.contestRepo.FindContestCases(ctx, contestID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get contest cases: %w", err)
+	}
+
+	resp := make([]responses.ContestCaseResponse, len(cases))
+	for i, cc := range cases {
+		resp[i] = responses.ContestCaseResponse{
+			CaseID:   cc.Case.ID,
+			CaseCode: cc.ProblemCode,
+			CaseName: cc.Case.Name,
+		}
+	}
+	return resp, nil
+}
+
 // AssignContestToClass assigns a contest to a specific class with a duration.
 func (s *contestServiceImpl) AssignContestToClass(ctx context.Context, classTransactionID uuid.UUID, req requests.AssignContestToClassRequest) (*responses.ClassContestAssignmentResponse, error) {
 	// Optional: Verify ContestID and ClassTransactionID exist before assigning

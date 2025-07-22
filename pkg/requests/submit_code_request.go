@@ -23,9 +23,10 @@ var languageIdToExtensions = map[int][]string{
 }
 
 type SubmitCodeRequest struct {
-	CaseID     uuid.UUID
-	LanguageID int
-	ContestID  *uuid.UUID
+	CaseID             uuid.UUID
+	LanguageID         int
+	ContestID          uuid.UUID
+	ClassTransactionID *uuid.UUID
 
 	// Internally populated fields after parsing
 	SourceCodeBytes []byte
@@ -39,7 +40,24 @@ func (r *SubmitCodeRequest) ParseAndValidate(c *gin.Context) error {
 	caseIDStr := c.PostForm("case_id")
 	langIDStr := c.PostForm("language_id")
 	contestIDStr := c.PostForm("contest_id")
+	classIDStr := c.PostForm("class_transaction_id")
 	sourceCodeStr := c.PostForm("source_code")
+
+	if classIDStr == "" {
+		// If class_id is not provided, we don't set it in the request
+		r.ClassTransactionID = nil
+	} else {
+		parsedClassID, err := uuid.Parse(classIDStr)
+		if err != nil {
+			return fmt.Errorf("invalid class_id format: %w", err)
+		}
+		r.ClassTransactionID = &parsedClassID
+
+	}
+
+	if contestIDStr == "" {
+		return fmt.Errorf("contest_id is required")
+	}
 
 	if caseIDStr == "" || langIDStr == "" {
 		return fmt.Errorf("case_id and language_id are required fields")
@@ -57,7 +75,7 @@ func (r *SubmitCodeRequest) ParseAndValidate(c *gin.Context) error {
 		if err != nil {
 			return fmt.Errorf("invalid contest_id format: %w", err)
 		}
-		r.ContestID = &parsedContestID
+		r.ContestID = parsedContestID
 	}
 
 	// --- Source Code Handling (File or String) ---

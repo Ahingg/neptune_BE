@@ -62,6 +62,7 @@ func main() {
 		&(handlerContainer.WebSocketHandler),
 		&(handlerContainer.SubmissionHandler),
 		&(handlerContainer.LanguageHandler),
+		&(handlerContainer.LeaderboardHandler),
 	)
 
 	port := os.Getenv("PORT")

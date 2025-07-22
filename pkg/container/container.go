@@ -7,6 +7,7 @@ import (
 	classHand "neptune/backend/handlers/class"
 	contestHandler "neptune/backend/handlers/contest"
 	"neptune/backend/handlers/language"
+	leaderboardHand "neptune/backend/handlers/leaderboard"
 	"neptune/backend/handlers/semester"
 	submissionHand "neptune/backend/handlers/submission"
 	"neptune/backend/handlers/test_case"
@@ -29,6 +30,7 @@ import (
 	"neptune/backend/services/internal_class"
 	"neptune/backend/services/internal_semester"
 	judgeServ "neptune/backend/services/judge0"
+	leaderboardServ "neptune/backend/services/leaderboard"
 	submissionServ "neptune/backend/services/submission"
 	testCaseServ "neptune/backend/services/test_case"
 	userService "neptune/backend/services/user"
@@ -48,6 +50,7 @@ type HandlerContainer struct {
 	SubmissionHandler       submissionHand.SubmissionHandler
 	WebSocketHandler        websocketHand.WebSocketHandler
 	LanguageHandler         language.LanguageHandler
+	LeaderboardHandler      leaderboardHand.LeaderboardHandler
 }
 
 func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
@@ -108,6 +111,10 @@ func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
 	submissionService := submissionServ.NewSubmissionService(submissionRepository, testCaseRepository, ch, judge0client, webSocketServ)
 	submissionHandler := submissionHand.NewSubmissionHandler(submissionService)
 
+	// leaderboard
+	leaderboardService := leaderboardServ.NewService(submissionRepository, contestRepo, classRepo, userRepository)
+	leaderboardHandler := leaderboardHand.NewLeaderboardHandler(leaderboardService, contestServ)
+
 	go func() {
 		if err := submissionService.StartListeners(); err != nil {
 			log.Fatalf("Failed to start submission listeners: %v", err)
@@ -126,5 +133,6 @@ func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
 		WebSocketHandler:        *webSocketHandler,
 		SubmissionHandler:       *submissionHandler,
 		LanguageHandler:         *languageHandler,
+		LeaderboardHandler:      *leaderboardHandler,
 	}
 }
