@@ -31,13 +31,14 @@ type submissionService struct {
 
 func (s *submissionService) SubmitCode(ctx context.Context, req *requests.SubmitCodeRequest, userID uuid.UUID) (*responses.SubmitCodeResponse, error) {
 	submission := &submissionModel.Submission{
-		ID:         uuid.New(),
-		CaseID:     req.CaseID,
-		UserID:     userID,
-		LanguageID: req.LanguageID,
-		ContestID:  req.ContestID,
-		Status:     submissionModel.SubmissionStatusJudging, // Start as In Queue
-		Score:      0,
+		ID:                 uuid.New(),
+		CaseID:             req.CaseID,
+		UserID:             userID,
+		LanguageID:         req.LanguageID,
+		ClassTransactionID: req.ClassTransactionID,
+		ContestID:          &req.ContestID,
+		Status:             submissionModel.SubmissionStatusJudging, // Start as In Queue
+		Score:              0,
 	}
 
 	submissionDir := filepath.Join("public/submissions", submission.ID.String())
@@ -321,6 +322,8 @@ func (s *submissionService) processResultJob(ctx context.Context, d amqp.Deliver
 
 	// Use a transaction to update submission and save results
 	// tx := s.db.Begin() ... (For simplicity, not showing full transaction code)
+	finalScore := getFinalScore(msg.Results)
+	submission.Score = finalScore
 	if err := s.submissionRepository.Update(ctx, submission); err != nil {
 		log.Printf("Error performing final update on submission %s: %v", submission.ID, err)
 		return
@@ -346,7 +349,6 @@ func (s *submissionService) processResultJob(ctx context.Context, d amqp.Deliver
 		}
 	}
 
-	finalScore := getFinalScore(msg.Results)
 	finalResultResponse := &responses.FinalResultResponse{
 		SubmissionID: submission.ID.String(),
 		FinalStatus:  submission.Status.String(),

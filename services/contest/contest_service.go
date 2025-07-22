@@ -17,6 +17,7 @@ type ContestService interface {
 
 	// Contest-Case (Problem) Management
 	AddCasesToContest(ctx context.Context, contestID uuid.UUID, req requests.AddCasesToContestRequest) error
+	GetContestCases(ctx context.Context, contestID uuid.UUID) ([]responses.ContestCaseResponse, error)
 
 	// Class-Contest Assignment
 	AssignContestToClass(ctx context.Context, classTransactionID uuid.UUID, req requests.AssignContestToClassRequest) (*responses.ClassContestAssignmentResponse, error)

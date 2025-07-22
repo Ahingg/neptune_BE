@@ -5,6 +5,7 @@ import (
 	"neptune/backend/handlers/class"
 	contestHandler "neptune/backend/handlers/contest"
 	"neptune/backend/handlers/language"
+	leaderboardHand "neptune/backend/handlers/leaderboard"
 	"neptune/backend/handlers/semester"
 	submissionHand "neptune/backend/handlers/submission"
 	testCaseHand "neptune/backend/handlers/test_case"
@@ -26,6 +27,7 @@ func NewRouter(userHandler *userHand.UserHandler,
 	webSocketHandler *websocketHand.WebSocketHandler,
 	submissionHandler *submissionHand.SubmissionHandler,
 	languageHandler *language.LanguageHandler,
+	leaderboardHandler *leaderboardHand.LeaderboardHandler,
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
@@ -80,6 +82,9 @@ func NewRouter(userHandler *userHand.UserHandler,
 		authRestrictedGroup.GET("/ws/submissions/:submissionId", webSocketHandler.HandleSubmissionConnection)
 
 		authRestrictedGroup.GET("/languages", languageHandler.GetSupportedLanguages)
+
+		// Leaderboard routes
+		authRestrictedGroup.GET("/classes/:classTransactionId/contests/:contestId/leaderboard", leaderboardHandler.GetClassContestLeaderboard)
 	}
 
 	adminGroup := r.Group("/admin")

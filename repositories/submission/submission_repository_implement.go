@@ -2,8 +2,10 @@ package submissionRepo
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	submissionModel "neptune/backend/models/submission"
+	"time"
 )
 
 type submissionRepository struct {
@@ -29,6 +31,17 @@ func (r submissionRepository) SaveResultsBatch(ctx context.Context, results []su
 		return nil
 	}
 	return r.db.WithContext(ctx).Create(&results).Error
+}
+
+func (r submissionRepository) FindAllForContest(ctx context.Context, caseIDs []uuid.UUID, userIDs []uuid.UUID, contestStartTime time.Time) ([]submissionModel.Submission, error) {
+	var submissions []submissionModel.Submission
+	err := r.db.WithContext(ctx).
+		Where("case_id IN ?", caseIDs).
+		Where("user_id IN ?", userIDs).
+		Where("created_at >= ?", contestStartTime).
+		Order("created_at asc"). // IMPORTANT: Sort by time to process chronologically
+		Find(&submissions).Error
+	return submissions, err
 }
 
 func NewSubmissionRepository(db *gorm.DB) SubmissionRepository {

@@ -42,3 +42,9 @@ type ContestDetailResponse struct {
 	CreatedAt   time.Time                    `json:"created_at"`
 	Cases       []ContestCaseProblemResponse `json:"cases"`
 }
+
+type ContestCaseResponse struct {
+	CaseID   uuid.UUID `json:"case_id"`
+	CaseCode string    `json:"case_code"`
+	CaseName string    `json:"case_name"`
+}

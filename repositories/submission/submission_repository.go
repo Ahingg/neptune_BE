@@ -2,7 +2,9 @@ package submissionRepo
 
 import (
 	"context"
+	"github.com/google/uuid"
 	submissionModel "neptune/backend/models/submission"
+	"time"
 )
 
 type SubmissionRepository interface {
@@ -10,4 +12,5 @@ type SubmissionRepository interface {
 	FindByID(ctx context.Context, id string) (*submissionModel.Submission, error)
 	Update(ctx context.Context, submission *submissionModel.Submission) error
 	SaveResultsBatch(ctx context.Context, results []submissionModel.SubmissionResult) error
+	FindAllForContest(ctx context.Context, caseIDs []uuid.UUID, userIDs []uuid.UUID, contestStartTime time.Time) ([]submissionModel.Submission, error)
 }
