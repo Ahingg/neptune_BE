@@ -91,3 +91,33 @@ func (h *SubmissionHandler) GetSubmissionByUserInContest(c *gin.Context) {
 
 	c.JSON(http.StatusOK, resp)
 }
+
+func (h *SubmissionHandler) GetClassContestSubmissions(c *gin.Context) {
+
+	classIdStr := c.Query("class_transaction_id")
+	if classIdStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "class_transaction_id is required"})
+		return
+	}
+
+	classId, err := uuid.Parse(classIdStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid uuid type for class_transaction_id"})
+		return
+	}
+
+	contestIdStr := c.Param("contestId")
+	contestId, err := uuid.Parse(contestIdStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid uuid type for contestId"})
+		return
+	}
+
+	resp, err := h.service.GetClassContestSubmissions(c.Request.Context(), classId, contestId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}

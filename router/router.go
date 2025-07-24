@@ -1,7 +1,6 @@
 package router
 
 import (
-	"fmt"
 	caseHandler "neptune/backend/handlers/case"
 	"neptune/backend/handlers/class"
 	contestHandler "neptune/backend/handlers/contest"
@@ -81,8 +80,8 @@ func NewRouter(userHandler *userHand.UserHandler,
 		// Submission routes
 		authRestrictedGroup.POST("/submissions", submissionHandler.SubmitCode)
 		authRestrictedGroup.GET("/ws/submissions/:submissionId", webSocketHandler.HandleSubmissionConnection)
-		fmt.Printf("mei %#v\n", submissionHandler.GetSubmissionByUserInContest)
 		authRestrictedGroup.GET("/submission/:contestId", submissionHandler.GetSubmissionByUserInContest)
+		authRestrictedGroup.GET("/submission/all/:contestId", submissionHandler.GetClassContestSubmissions)
 
 		authRestrictedGroup.GET("/languages", languageHandler.GetSupportedLanguages)
 

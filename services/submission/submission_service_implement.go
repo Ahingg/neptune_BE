@@ -13,6 +13,7 @@ import (
 	"neptune/backend/pkg/responses"
 	submissionRepo "neptune/backend/repositories/submission"
 	testCaseRepo "neptune/backend/repositories/test_case"
+	userRepo "neptune/backend/repositories/user"
 	contestService "neptune/backend/services/contest"
 	judgeServ "neptune/backend/services/judge0"
 	webSocketService "neptune/backend/services/web_socket_service"
@@ -29,6 +30,7 @@ type submissionService struct {
 	rabbitChannel        *amqp.Channel
 	judgeClient          judgeServ.Judge0Client
 	webSocketManager     webSocketService.WebSocketService
+	userRepository       userRepo.UserRepository
 }
 
 func (s *submissionService) SubmitCode(ctx context.Context, req *requests.SubmitCodeRequest, userID uuid.UUID) (*responses.SubmitCodeResponse, error) {
@@ -117,6 +119,43 @@ func (s *submissionService) GetSubmissionByUserInContest(ctx context.Context, us
 			LanguageID:   sub.LanguageID,
 		})
 	}
+	return resp, nil
+}
+
+func (s *submissionService) GetClassContestSubmissions(ctx context.Context, classTransactionID uuid.UUID, contestID uuid.UUID) ([]responses.GetSubmissionByClassContestResponse, error) {
+	submissions, err := s.submissionRepository.FindClassSubmissions(ctx, classTransactionID, contestID)
+	if err != nil {
+
+		return nil, fmt.Errorf("failed to fetch class submissions for class %s in contest %s: %w", classTransactionID, contestID, err)
+	}
+	var resp []responses.GetSubmissionByClassContestResponse
+	for _, sub := range submissions {
+		submissionCase, err := s.contestService.GetContentCaseByCaseID(ctx, contestID, sub.CaseID)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to get contest case on submission ln 127 :%w", err)
+		}
+
+		user, err := s.userRepository.GetUserByID(ctx, sub.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get user by ID %s for submission %s: %w", sub.UserID, sub.ID, err)
+		}
+
+		resp = append(resp, responses.GetSubmissionByClassContestResponse{
+			UserID:       sub.UserID.String(),
+			Username:     user.Username,
+			Name:         user.Name,
+			SubmissionID: sub.ID.String(),
+			ContestID:    sub.ContestID.String(),
+			CaseID:       sub.CaseID.String(),
+			CaseCode:     submissionCase.CaseCode,
+			Status:       sub.Status.String(),
+			Score:        sub.Score,
+			SubmitTime:   sub.CreatedAt.Format(time.RFC3339),
+			LanguageID:   sub.LanguageID,
+		})
+	}
+
 	return resp, nil
 }
 
@@ -412,7 +451,8 @@ func NewSubmissionService(repo submissionRepo.SubmissionRepository,
 	rabbitChannel *amqp.Channel,
 	judgeClient judgeServ.Judge0Client,
 	webSocketManager webSocketService.WebSocketService,
-	contestServ contestService.ContestService) SubmissionService {
+	contestServ contestService.ContestService,
+	userRepo userRepo.UserRepository) SubmissionService {
 	return &submissionService{
 		submissionRepository: repo,
 		testCaseRepository:   testCaseRepo,
@@ -420,5 +460,6 @@ func NewSubmissionService(repo submissionRepo.SubmissionRepository,
 		judgeClient:          judgeClient,
 		webSocketManager:     webSocketManager,
 		contestService:       contestServ,
+		userRepository:       userRepo, // Assuming you have a user repository
 	}
 }
