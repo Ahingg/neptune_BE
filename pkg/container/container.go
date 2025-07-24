@@ -51,6 +51,7 @@ type HandlerContainer struct {
 	WebSocketHandler        websocketHand.WebSocketHandler
 	LanguageHandler         language.LanguageHandler
 	LeaderboardHandler      leaderboardHand.LeaderboardHandler
+	SubmissionReviewHandler submissionHand.SubmissionReviewHandler
 }
 
 func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
@@ -109,8 +110,9 @@ func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
 
 	// submission
 	submissionService := submissionServ.NewSubmissionService(submissionRepository, testCaseRepository, ch, judge0client, webSocketServ, contestServ, userRepository)
+	sourceCodeService := submissionServ.NewSubmissionReviewService(submissionRepository)
 	submissionHandler := submissionHand.NewSubmissionHandler(submissionService)
-
+	submissionReviewHandler := submissionHand.NewSubmissionReviewHandler(sourceCodeService)
 	// leaderboard
 	leaderboardService := leaderboardServ.NewService(submissionRepository, contestRepo, classRepo, userRepository)
 	leaderboardHandler := leaderboardHand.NewLeaderboardHandler(leaderboardService, contestServ)
@@ -134,5 +136,6 @@ func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
 		SubmissionHandler:       *submissionHandler,
 		LanguageHandler:         *languageHandler,
 		LeaderboardHandler:      *leaderboardHandler,
+		SubmissionReviewHandler: *submissionReviewHandler,
 	}
 }

@@ -64,6 +64,7 @@ func main() {
 		&(handlerContainer.SubmissionHandler),
 		&(handlerContainer.LanguageHandler),
 		&(handlerContainer.LeaderboardHandler),
+		&(handlerContainer.SubmissionReviewHandler),
 	)
 
 	port := os.Getenv("PORT")
