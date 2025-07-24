@@ -36,7 +36,7 @@ vendor/
 *.bak
 
 # Env files
-# .env
+.env
 
 # files
 public/
