@@ -37,3 +37,7 @@ vendor/
 
 # Env files
 .env
+
+# files
+public/
+private/

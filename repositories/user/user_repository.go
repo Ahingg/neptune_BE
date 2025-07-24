@@ -1,12 +1,15 @@
 package user
 
 import (
+	"context"
 	"github.com/google/uuid"
 	model "neptune/backend/models/user"
 )
 
 type UserRepository interface {
-	Create(user *model.User) error
-	FindByUsername(username string) (model.User, error)
-	FindById(id uuid.UUID) (model.User, error)
+	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
+	Save(ctx context.Context, user *model.User) error
+	CreateUser(ctx context.Context, user *model.User) error
+	UpdateUser(ctx context.Context, user *model.User) error
+	GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 }
