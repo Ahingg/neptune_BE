@@ -71,6 +71,8 @@ func NewRouter(userHandler *userHand.UserHandler,
 		// Contest routes
 		authRestrictedGroup.GET("/contests", contestHandler.GetAllContests)
 		authRestrictedGroup.GET("/contests/:contestId", contestHandler.GetContestByID)
+		authRestrictedGroup.GET("/contests/global-detail", contestHandler.GetAllGlobalContestDetail)
+		authRestrictedGroup.GET("/contests/global", contestHandler.GetAllGlobalContestWithoutDetail)
 		authRestrictedGroup.GET("/classes/:classTransactionId/contests", contestHandler.GetContestsForClass) // Get contests assigned to a class
 
 		// Case routes
@@ -87,6 +89,7 @@ func NewRouter(userHandler *userHand.UserHandler,
 
 		// Leaderboard routes
 		authRestrictedGroup.GET("/classes/:classTransactionId/contests/:contestId/leaderboard", leaderboardHandler.GetClassContestLeaderboard)
+		authRestrictedGroup.GET("/contests/:contestId/leaderboard", leaderboardHandler.GetGlobalContestLeaderboard)
 	}
 
 	adminGroup := r.Group("/admin")

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	leaderboardModel "neptune/backend/models/leaderboard"
 	submissionModel "neptune/backend/models/submission"
+	"neptune/backend/models/user"
 	"neptune/backend/repositories/class"
 	contestRepository "neptune/backend/repositories/contest"
 	submissionRepo "neptune/backend/repositories/submission"
@@ -19,6 +20,7 @@ const penaltyPerWrongAttempt = 20
 
 type Service interface {
 	GetContestLeaderboard(ctx context.Context, classID, contestID uuid.UUID) ([]leaderboardModel.LeaderboardRow, error)
+	GetGlobalContestLeaderboard(ctx context.Context, contestID uuid.UUID) ([]leaderboardModel.LeaderboardRow, error)
 }
 
 type serviceImpl struct {
@@ -86,7 +88,7 @@ func (s *serviceImpl) GetContestLeaderboard(ctx context.Context, classID, contes
 	}
 
 	// Step 3: Fetch all relevant submissions in a single, efficient query
-	allSubmissions, err := s.submissionRepo.FindAllForContest(ctx, caseIDs, userIDs, contestStartTime)
+	allSubmissions, err := s.submissionRepo.FindAllForContest(ctx, contestID, &classID, contestStartTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch submissions: %w", err)
 	}
@@ -142,6 +144,119 @@ func (s *serviceImpl) GetContestLeaderboard(ctx context.Context, classID, contes
 	})
 
 	// Step 6: Assign final ranks
+	for i := range leaderboardRows {
+		leaderboardRows[i].Rank = i + 1
+	}
+
+	return leaderboardRows, nil
+}
+
+func (s *serviceImpl) GetGlobalContestLeaderboard(ctx context.Context, contestID uuid.UUID) ([]leaderboardModel.LeaderboardRow, error) {
+	// Step 1: Fetch contest data
+	contestCases, err := s.contestRepo.FindContestCases(ctx, contestID)
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch problems for contest: %w", err)
+	}
+	if len(contestCases) == 0 {
+		return []leaderboardModel.LeaderboardRow{}, nil
+	}
+
+	contest, err := s.contestRepo.FindContestByID(ctx, contestID)
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch contest: %w", err)
+	}
+	contestStartTime := contest.GlobalContestDetail.StartTime
+
+	// Step 2: Fetch all submissions for the contest
+	allSubmissions, err := s.submissionRepo.FindAllForContest(ctx, contestID, nil, contestStartTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch submissions: %w", err)
+	}
+
+	// Group submissions by user
+	submissionsByUser := make(map[uuid.UUID][]submissionModel.Submission)
+	userIDsMap := make(map[uuid.UUID]struct{})
+
+	for _, sub := range allSubmissions {
+		submissionsByUser[sub.UserID] = append(submissionsByUser[sub.UserID], sub)
+		userIDsMap[sub.UserID] = struct{}{}
+	}
+
+	// Extract unique user IDs
+	var userIDs []uuid.UUID
+	for uid := range userIDsMap {
+		userIDs = append(userIDs, uid)
+	}
+	if len(userIDs) == 0 {
+		return []leaderboardModel.LeaderboardRow{}, nil
+	}
+
+	// Fetch user info
+	users := make([]user.User, 0, len(userIDs))
+	for uid := range userIDsMap {
+		userInfo, err := s.userRepo.GetUserByID(ctx, uid)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch user info for %s: %w", uid.String(), err)
+		}
+		users = append(users, *userInfo)
+	}
+
+	userNameMap := make(map[uuid.UUID]struct {
+		Name     string
+		UserName string
+	})
+	for _, u := range users {
+		userNameMap[u.ID] = struct {
+			Name     string
+			UserName string
+		}{
+			Name:     u.Name,
+			UserName: u.Username,
+		}
+	}
+
+	// Step 3: Process submissions for each user
+	var leaderboardRows []leaderboardModel.LeaderboardRow
+	for _, userID := range userIDs {
+		userSubmissions := submissionsByUser[userID]
+		row := leaderboardModel.LeaderboardRow{
+			UserID:         userID,
+			Name:           userNameMap[userID].Name,
+			UserName:       userNameMap[userID].UserName,
+			SolvedCount:    0,
+			TotalPenalty:   0,
+			ProblemResults: make(map[string]leaderboardModel.CaseResult),
+		}
+
+		submissionsByCase := make(map[uuid.UUID][]submissionModel.Submission)
+		for _, sub := range userSubmissions {
+			submissionsByCase[sub.CaseID] = append(submissionsByCase[sub.CaseID], sub)
+		}
+
+		for _, problem := range contestCases {
+			problemSubmissions := submissionsByCase[problem.CaseID]
+			problemResult := calculateProblemResult(problemSubmissions, contestStartTime)
+			row.ProblemResults[problem.ProblemCode] = problemResult
+			if problemResult.IsSolved {
+				row.SolvedCount++
+				row.TotalPenalty += problemResult.SolveTimeMinutes + (problemResult.WrongAttempts * penaltyPerWrongAttempt)
+			}
+		}
+		leaderboardRows = append(leaderboardRows, row)
+	}
+
+	// Step 4: Sort leaderboard
+	sort.Slice(leaderboardRows, func(i, j int) bool {
+		if leaderboardRows[i].SolvedCount != leaderboardRows[j].SolvedCount {
+			return leaderboardRows[i].SolvedCount > leaderboardRows[j].SolvedCount
+		}
+		if leaderboardRows[i].TotalPenalty != leaderboardRows[j].TotalPenalty {
+			return leaderboardRows[i].TotalPenalty < leaderboardRows[j].TotalPenalty
+		}
+		return leaderboardRows[i].UserName < leaderboardRows[j].UserName
+	})
+
+	// Step 5: Assign ranks
 	for i := range leaderboardRows {
 		leaderboardRows[i].Rank = i + 1
 	}

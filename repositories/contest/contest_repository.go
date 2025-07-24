@@ -7,6 +7,10 @@ import (
 )
 
 type ContestRepository interface {
+	// Global Contest Management
+	SaveGlobalContestDetail(ctx context.Context, detail *contestModel.GlobalContestDetail) error
+	FindAllActiveGlobalContests(ctx context.Context) ([]contestModel.Contest, error)
+
 	SaveContest(ctx context.Context, contest *contestModel.Contest) error
 	FindContestByID(ctx context.Context, contestID uuid.UUID) (*contestModel.Contest, error)
 	FindAllContests(ctx context.Context) ([]contestModel.Contest, error)

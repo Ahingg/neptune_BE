@@ -46,6 +46,7 @@ func main() {
 		&contestModel.ClassContest{},
 		&submissionModel.Submission{},
 		&submissionModel.SubmissionResult{},
+		&contestModel.GlobalContestDetail{},
 	); err != nil {
 		utils.CheckPanic(err)
 	}

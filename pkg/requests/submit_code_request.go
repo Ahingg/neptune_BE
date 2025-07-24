@@ -19,7 +19,7 @@ var languageIdToExtensions = map[int][]string{
 	48: {".cpp", ".c"}, // C (GCC 7.4.0)
 	49: {".cpp", ".c"}, // C (GCC 8.3.0)
 	50: {".cpp", ".c"}, // C (GCC 9.2.0)
-	92: {".py"},        // Python
+	71: {".py"},        // Python
 }
 
 type SubmitCodeRequest struct {

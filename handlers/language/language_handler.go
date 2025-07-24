@@ -12,7 +12,7 @@ type LanguageInfo struct {
 }
 
 var supportedLanguages = []LanguageInfo{
-	{ID: 92, Name: "Python (3.12.3)"}, // Assuming this ID exists in your deployment
+	{ID: 71, Name: "Python (3.8.1)"}, // Assuming this ID exists in your deployment
 	{ID: 76, Name: "C++ (Clang 7.0.1)"},
 	{ID: 52, Name: "C++ (GCC 7.4.0)"},
 	{ID: 53, Name: "C++ (GCC 8.3.0)"},

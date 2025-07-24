@@ -28,6 +28,7 @@ type ClassContestAssignmentResponse struct {
 type ContestCaseProblemResponse struct {
 	CaseID        uuid.UUID `json:"case_id"`
 	ProblemCode   string    `json:"problem_code"`
+	Description   string    `json:"description"`
 	Name          string    `json:"name"`
 	TimeLimitMs   int       `json:"time_limit_ms"`
 	MemoryLimitMb int       `json:"memory_limit_mb"`
@@ -47,4 +48,23 @@ type ContestCaseResponse struct {
 	CaseID   uuid.UUID `json:"case_id"`
 	CaseCode string    `json:"case_code"`
 	CaseName string    `json:"case_name"`
+}
+
+type GlobalContestResponse struct {
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Scope       string    `json:"scope"` // e.g., "public", "class"
+	StartTime   time.Time `json:"start_time"`
+	EndTime     time.Time `json:"end_time"`
+}
+
+type GlobalContestDetailResponse struct {
+	ID          uuid.UUID                    `json:"id"`
+	Name        string                       `json:"name"`
+	Description string                       `json:"description"`
+	Scope       string                       `json:"scope"` // e.g., "public", "class"
+	StartTime   time.Time                    `json:"start_time"`
+	EndTime     time.Time                    `json:"end_time"`
+	Cases       []ContestCaseProblemResponse `json:"cases"`
 }
