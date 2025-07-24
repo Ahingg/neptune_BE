@@ -33,6 +33,5 @@ type Submission struct {
 	ClassTransactionID *uuid.UUID       `gorm:"type:uuid"`
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
-	
-	SubmissionResults []SubmissionResult `gorm:"foreignKey:SubmissionID"`
+	SubmissionResults  []SubmissionResult `gorm:"foreignKey:SubmissionID"`
 }

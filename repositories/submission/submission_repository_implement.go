@@ -2,6 +2,7 @@ package submissionRepo
 
 import (
 	"context"
+	"fmt"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	submissionModel "neptune/backend/models/submission"
@@ -41,6 +42,19 @@ func (r submissionRepository) FindAllForContest(ctx context.Context, caseIDs []u
 		Where("created_at >= ?", contestStartTime).
 		Order("created_at asc"). // IMPORTANT: Sort by time to process chronologically
 		Find(&submissions).Error
+	return submissions, err
+}
+
+func (r submissionRepository) FindByUserInContest(ctx context.Context, contestID uuid.UUID, userID uuid.UUID, classID *uuid.UUID) ([]submissionModel.Submission, error) {
+	var submissions []submissionModel.Submission
+	classQuery := "class_transaction_id IS NOT NULL"
+	if classID == nil {
+		classQuery = "class_transaction_id IS NULL"
+	}
+	fmt.Println(contestID, userID, classID)
+	err := r.db.WithContext(ctx).
+		Where("contest_id = ?", contestID).
+		Where("user_id = ?", userID).Where(classQuery).Find(&submissions).Error
 	return submissions, err
 }
 

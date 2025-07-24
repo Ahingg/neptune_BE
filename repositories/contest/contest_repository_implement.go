@@ -39,6 +39,21 @@ func (r *contestRepositoryImpl) SaveContest(ctx context.Context, contest *contes
 	}).Create(contest).Error
 }
 
+func (r *contestRepositoryImpl) GetContestCaseByCaseID(ctx context.Context, contestID, caseID uuid.UUID) (*contestModel.ContestCase, error) {
+	var contestCase contestModel.ContestCase
+	result := r.db.WithContext(ctx).Preload("Case").Where("contest_id", contestID).Where("case_id", caseID).Find(&contestCase)
+	if result.Error != nil {
+		if result.Error != nil {
+			if result.Error == gorm.ErrRecordNotFound {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("failed to find contest by ID %s: %w", contestID.String(), result.Error)
+		}
+	}
+	fmt.Println(&contestCase)
+	return &contestCase, nil
+}
+
 // FindContestByID retrieves a Contest with its associated Cases.
 func (r *contestRepositoryImpl) FindContestByID(ctx context.Context, contestID uuid.UUID) (*contestModel.Contest, error) {
 	var contest contestModel.Contest

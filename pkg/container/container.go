@@ -108,7 +108,7 @@ func NewHandlerContainer(db *gorm.DB) *HandlerContainer {
 	testCaseHandler := testCaseHand.NewTestCaseHandler(testCaseService, caseServ)
 
 	// submission
-	submissionService := submissionServ.NewSubmissionService(submissionRepository, testCaseRepository, ch, judge0client, webSocketServ)
+	submissionService := submissionServ.NewSubmissionService(submissionRepository, testCaseRepository, ch, judge0client, webSocketServ, contestServ)
 	submissionHandler := submissionHand.NewSubmissionHandler(submissionService)
 
 	// leaderboard

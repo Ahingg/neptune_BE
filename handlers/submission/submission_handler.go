@@ -1,9 +1,11 @@
 package submissionHand
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"neptune/backend/pkg/requests"
+	"neptune/backend/pkg/responses"
 	submissionServ "neptune/backend/services/submission"
 	"net/http"
 )
@@ -45,4 +47,47 @@ func (h *SubmissionHandler) SubmitCode(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusAccepted, submission)
+}
+
+func (h *SubmissionHandler) GetSubmissionByUserInContest(c *gin.Context) {
+	userIdStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no user_id in token"})
+		return
+	}
+
+	userId, err := uuid.Parse(userIdStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "userId does not satisfy the requirement"})
+		return
+	}
+
+	contestIdStr := c.Param("contestId")
+	contestId, err := uuid.Parse(contestIdStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid uuid type for contestId"})
+		return
+	}
+
+	classIdStr := c.Query("class_transaction_id")
+	var resp []responses.GetSubmissionByUserInContestResponse
+
+	if classIdStr == "" {
+		resp, err = h.service.GetSubmissionByUserInContest(c.Request.Context(), userId, contestId, nil)
+	} else {
+		classId, err := uuid.Parse(classIdStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid uuid type for classId"})
+			return
+		}
+		fmt.Println(classId, contestId, userId)
+		resp, err = h.service.GetSubmissionByUserInContest(c.Request.Context(), userId, contestId, &classId)
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
 }

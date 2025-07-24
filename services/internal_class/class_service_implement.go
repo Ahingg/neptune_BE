@@ -287,18 +287,40 @@ func (c classService) GetClassDetailBySemesterAndCourse(ctx context.Context, sem
 		return nil, fmt.Errorf("failed to retrieve classes for semester %s and course %s: %w", semesterID, courseID, err)
 	}
 
-	var response []responses.GetDetailClassResponse
+	resp := make([]responses.GetDetailClassResponse, 0, len(classes))
+
 	for _, class := range classes {
-		response = append(response, responses.GetDetailClassResponse{
+		classStudents := make([]responses.ClassUserResponse, 0, len(class.Students))
+		for _, student := range class.Students {
+			classStudents = append(classStudents, responses.ClassUserResponse{
+				UserID:   student.User.ID.String(),
+				UserName: student.User.Username,
+				Name:     student.User.Name,
+			})
+		}
+
+		classAssistant := make([]responses.ClassUserResponse, 0, len(class.Assistants))
+		for _, assistant := range class.Assistants {
+			classAssistant = append(classAssistant, responses.ClassUserResponse{
+				UserID:   assistant.User.ID.String(),
+				UserName: assistant.User.Username,
+				Name:     assistant.User.Name,
+			})
+		}
+
+		response := &responses.GetDetailClassResponse{
 			ClassTransactionID: class.ClassTransactionID.String(),
 			SemesterID:         class.SemesterID.String(),
 			CourseOutlineID:    class.CourseOutlineID.String(),
 			ClassCode:          class.ClassCode,
-			Students:           class.Students,
-			Assistants:         class.Assistants,
-		})
+			Students:           classStudents,
+			Assistants:         classAssistant,
+		}
+
+		resp = append(resp, *response)
 	}
-	return response, nil
+
+	return resp, nil
 }
 
 func (c classService) GetClassDetailBySemesterCourseAndStudent(ctx context.Context, semesterID, courseID, userID string) ([]responses.GetDetailClassResponse, error) {
@@ -309,13 +331,32 @@ func (c classService) GetClassDetailBySemesterCourseAndStudent(ctx context.Conte
 
 	var response []responses.GetDetailClassResponse
 	for _, class := range classes {
+
+		classStudent := make([]responses.ClassUserResponse, 0, len(class.Students))
+		for _, student := range class.Students {
+			classStudent = append(classStudent, responses.ClassUserResponse{
+				UserID:   student.User.ID.String(),
+				UserName: student.User.Username,
+				Name:     student.User.Name,
+			})
+		}
+
+		classAssistant := make([]responses.ClassUserResponse, 0, len(class.Assistants))
+		for _, assistant := range class.Assistants {
+			classAssistant = append(classAssistant, responses.ClassUserResponse{
+				UserID:   assistant.User.ID.String(),
+				UserName: assistant.User.Username,
+				Name:     assistant.User.Name,
+			})
+		}
+
 		response = append(response, responses.GetDetailClassResponse{
 			ClassTransactionID: class.ClassTransactionID.String(),
 			SemesterID:         class.SemesterID.String(),
 			CourseOutlineID:    class.CourseOutlineID.String(),
 			ClassCode:          class.ClassCode,
-			Students:           class.Students,
-			Assistants:         class.Assistants,
+			Students:           classStudent,
+			Assistants:         classAssistant,
 		})
 	}
 	return response, nil
@@ -330,13 +371,31 @@ func (c classService) GetClassDetailByTransactionID(ctx context.Context, classTr
 		return nil, fmt.Errorf("class with transaction ID %s not found", classTransactionID)
 	}
 
+	classStudents := make([]responses.ClassUserResponse, 0, len(class.Students))
+	for _, student := range class.Students {
+		classStudents = append(classStudents, responses.ClassUserResponse{
+			UserID:   student.User.ID.String(),
+			UserName: student.User.Username,
+			Name:     student.User.Name,
+		})
+	}
+
+	classAssistant := make([]responses.ClassUserResponse, 0, len(class.Assistants))
+	for _, assistant := range class.Assistants {
+		classAssistant = append(classAssistant, responses.ClassUserResponse{
+			UserID:   assistant.User.ID.String(),
+			UserName: assistant.User.Username,
+			Name:     assistant.User.Name,
+		})
+	}
+
 	response := &responses.GetDetailClassResponse{
 		ClassTransactionID: class.ClassTransactionID.String(),
 		SemesterID:         class.SemesterID.String(),
 		CourseOutlineID:    class.CourseOutlineID.String(),
 		ClassCode:          class.ClassCode,
-		Students:           class.Students,
-		Assistants:         class.Assistants,
+		Students:           classStudents,
+		Assistants:         classAssistant,
 	}
 	return response, nil
 }

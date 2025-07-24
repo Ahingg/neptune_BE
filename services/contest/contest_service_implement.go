@@ -17,6 +17,23 @@ type contestServiceImpl struct {
 	caseRepo    caseRepository.CaseRepository // Need to lookup cases by ID
 }
 
+func (s *contestServiceImpl) GetContentCaseByCaseID(ctx context.Context, contestID, caseID uuid.UUID) (*responses.ContestCaseResponse, error) {
+
+	contestCase, err := s.contestRepo.GetContestCaseByCaseID(ctx, contestID, caseID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	resp := responses.ContestCaseResponse{
+		CaseID:   contestCase.CaseID,
+		CaseCode: contestCase.ProblemCode,
+		CaseName: contestCase.Case.Name,
+	}
+
+	return &resp, nil
+}
+
 func NewContestService(contestRepo contestRepository.ContestRepository, caseRepo caseRepository.CaseRepository) ContestService {
 	return &contestServiceImpl{
 		contestRepo: contestRepo,
