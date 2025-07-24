@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	caseHandler "neptune/backend/handlers/case"
 	"neptune/backend/handlers/class"
 	contestHandler "neptune/backend/handlers/contest"
@@ -31,7 +32,7 @@ func NewRouter(userHandler *userHand.UserHandler,
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173"},
+		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:5174"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -65,8 +66,8 @@ func NewRouter(userHandler *userHand.UserHandler,
 		// Class routes
 		authRestrictedGroup.GET("/debug-semesters", semesterHandler.DebugSemestersHandler)
 		authRestrictedGroup.GET("/classes", classHandler.GetClassesBySemesterAndCourseHandler)
-		authRestrictedGroup.GET("/classes/detail", classHandler.GetClassDetailBySemesterAndCourseHandler)               // Specific detail
-		authRestrictedGroup.GET("/class-detail/:classTransactionId", classHandler.GetClassDetailByTransactionIDHandler) // General class detail by ID
+		authRestrictedGroup.GET("/classes/detail", classHandler.GetClassDetailBySemesterAndCourseHandler) // Specific detail
+		authRestrictedGroup.GET("/class-detail", classHandler.GetClassDetailByTransactionIDHandler)       // General class detail by ID
 
 		// Contest routes
 		authRestrictedGroup.GET("/contests", contestHandler.GetAllContests)
@@ -80,6 +81,8 @@ func NewRouter(userHandler *userHand.UserHandler,
 		// Submission routes
 		authRestrictedGroup.POST("/submissions", submissionHandler.SubmitCode)
 		authRestrictedGroup.GET("/ws/submissions/:submissionId", webSocketHandler.HandleSubmissionConnection)
+		fmt.Printf("mei %#v\n", submissionHandler.GetSubmissionByUserInContest)
+		authRestrictedGroup.GET("/submission/:contestId", submissionHandler.GetSubmissionByUserInContest)
 
 		authRestrictedGroup.GET("/languages", languageHandler.GetSupportedLanguages)
 

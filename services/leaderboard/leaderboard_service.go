@@ -189,7 +189,6 @@ func calculateProblemResult(submissions []submissionModel.Submission, contestSta
 				wrongResult.Score = sub.Score
 				latestUpdateTime = sub.UpdatedAt
 				wrongResult.CaseID = sub.CaseID
-				fmt.Printf("Updated wrong result for case %s with submission %s, score %d\n", sub.CaseID, sub.ID, sub.Score)
 			}
 		}
 	}
