@@ -28,6 +28,7 @@ func NewRouter(userHandler *userHand.UserHandler,
 	submissionHandler *submissionHand.SubmissionHandler,
 	languageHandler *language.LanguageHandler,
 	leaderboardHandler *leaderboardHand.LeaderboardHandler,
+	sourceCodeHandler *submissionHand.SubmissionReviewHandler,
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
@@ -84,12 +85,15 @@ func NewRouter(userHandler *userHand.UserHandler,
 		authRestrictedGroup.GET("/ws/submissions/:submissionId", webSocketHandler.HandleSubmissionConnection)
 		authRestrictedGroup.GET("/submission/:contestId", submissionHandler.GetSubmissionByUserInContest)
 		authRestrictedGroup.GET("/submission/all/:contestId", submissionHandler.GetClassContestSubmissions)
+		authRestrictedGroup.GET("/submissions/:submissionId/code", sourceCodeHandler.ViewCode)
+		authRestrictedGroup.GET("/submissions/:submissionId/download", sourceCodeHandler.DownloadCode)
 
 		authRestrictedGroup.GET("/languages", languageHandler.GetSupportedLanguages)
 
 		// Leaderboard routes
 		authRestrictedGroup.GET("/classes/:classTransactionId/contests/:contestId/leaderboard", leaderboardHandler.GetClassContestLeaderboard)
 		authRestrictedGroup.GET("/contests/:contestId/leaderboard", leaderboardHandler.GetGlobalContestLeaderboard)
+
 	}
 
 	adminGroup := r.Group("/admin")
