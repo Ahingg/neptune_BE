@@ -70,7 +70,7 @@ func (h *SubmissionHandler) GetSubmissionByUserInContest(c *gin.Context) {
 	}
 
 	classIdStr := c.Query("class_transaction_id")
-	var resp []responses.GetSubmissionByUserInContestResponse
+	var resp []responses.GetUserSubmissionsResponse
 
 	if classIdStr == "" {
 		resp, err = h.service.GetSubmissionByUserInContest(c.Request.Context(), userId, contestId, nil)

@@ -94,21 +94,21 @@ func (s *submissionService) SubmitCode(ctx context.Context, req *requests.Submit
 	return resp, nil
 }
 
-func (s *submissionService) GetSubmissionByUserInContest(ctx context.Context, userID uuid.UUID, contestID uuid.UUID, classTransactionID *uuid.UUID) ([]responses.GetSubmissionByUserInContestResponse, error) {
+func (s *submissionService) GetSubmissionByUserInContest(ctx context.Context, userID uuid.UUID, contestID uuid.UUID, classTransactionID *uuid.UUID) ([]responses.GetUserSubmissionsResponse, error) {
 	submissions, err := s.submissionRepository.FindByUserInContest(ctx, contestID, userID, classTransactionID)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch submissions for user %s in contest %s: %w", userID, contestID, err)
 	}
 
-	var resp []responses.GetSubmissionByUserInContestResponse
+	var resp []responses.GetUserSubmissionsResponse
 	for _, sub := range submissions {
 		submissionCase, err := s.contestService.GetContentCaseByCaseID(ctx, contestID, sub.CaseID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get contest case on submission ln 107 :%w", err)
 		}
 
-		resp = append(resp, responses.GetSubmissionByUserInContestResponse{
+		resp = append(resp, responses.GetUserSubmissionsResponse{
 			SubmissionID: sub.ID.String(),
 			ContestID:    sub.ContestID.String(),
 			CaseID:       sub.CaseID.String(),
@@ -122,13 +122,13 @@ func (s *submissionService) GetSubmissionByUserInContest(ctx context.Context, us
 	return resp, nil
 }
 
-func (s *submissionService) GetClassContestSubmissions(ctx context.Context, classTransactionID uuid.UUID, contestID uuid.UUID) ([]responses.GetSubmissionByClassContestResponse, error) {
+func (s *submissionService) GetClassContestSubmissions(ctx context.Context, classTransactionID uuid.UUID, contestID uuid.UUID) ([]responses.GetSubmissionPerContestResponse, error) {
 	submissions, err := s.submissionRepository.FindClassSubmissions(ctx, classTransactionID, contestID)
 	if err != nil {
 
 		return nil, fmt.Errorf("failed to fetch class submissions for class %s in contest %s: %w", classTransactionID, contestID, err)
 	}
-	var resp []responses.GetSubmissionByClassContestResponse
+	var resp []responses.GetSubmissionPerContestResponse
 	for _, sub := range submissions {
 		submissionCase, err := s.contestService.GetContentCaseByCaseID(ctx, contestID, sub.CaseID)
 
@@ -141,7 +141,7 @@ func (s *submissionService) GetClassContestSubmissions(ctx context.Context, clas
 			return nil, fmt.Errorf("failed to get user by ID %s for submission %s: %w", sub.UserID, sub.ID, err)
 		}
 
-		resp = append(resp, responses.GetSubmissionByClassContestResponse{
+		resp = append(resp, responses.GetSubmissionPerContestResponse{
 			UserID:       sub.UserID.String(),
 			Username:     user.Username,
 			Name:         user.Name,
