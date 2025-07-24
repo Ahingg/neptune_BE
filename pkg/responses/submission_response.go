@@ -1,6 +1,9 @@
 package responses
 
-type GetSubmissionByUserInContestResponse struct {
+type GetSubmissionPerContestResponse struct {
+	UserID       string `json:"user_id"`
+	Username     string `json:"username"`
+	Name         string `json:"name"`
 	SubmissionID string `json:"submission_id"`
 	ContestID    string `json:"contest_id"`
 	CaseID       string `json:"case_id"`
@@ -12,7 +15,7 @@ type GetSubmissionByUserInContestResponse struct {
 
 }
 
-type GetSubmissionByClassContestResponse struct {
+type GetUserSubmissionsResponse struct {
 	UserID       string `json:"user_id"`
 	Username     string `json:"username"`
 	Name         string `json:"name"`
