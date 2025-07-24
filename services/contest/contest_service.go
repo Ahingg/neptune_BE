@@ -8,6 +8,10 @@ import (
 )
 
 type ContestService interface {
+	// Global Contest Management
+	FindAllActiveGlobalContests(ctx context.Context) ([]responses.GlobalContestResponse, error)
+	FindAllActiveGlobalContestsDetail(ctx context.Context) ([]responses.GlobalContestDetailResponse, error)
+
 	// Contest Management
 	CreateContest(ctx context.Context, req requests.CreateContestRequest) (*responses.ContestResponse, error)
 	GetContestByID(ctx context.Context, contestID uuid.UUID) (*responses.ContestDetailResponse, error)

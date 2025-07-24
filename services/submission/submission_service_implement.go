@@ -241,7 +241,7 @@ func (s *submissionService) processSubmissionJob(ctx context.Context, d amqp.Del
 
 	resp := responses.FinalResultResponse{
 		SubmissionID: submission.ID.String(),
-		FinalStatus:  submission.Status.String(),
+		Status:       submission.Status.String(),
 		CaseID:       submission.CaseID.String(),
 		TestCases:    []responses.TestCaseJudgeResponse{},
 	}
@@ -421,7 +421,7 @@ func (s *submissionService) processResultJob(ctx context.Context, d amqp.Deliver
 
 	finalResultResponse := &responses.FinalResultResponse{
 		SubmissionID: submission.ID.String(),
-		FinalStatus:  submission.Status.String(),
+		Status:       submission.Status.String(),
 		CaseID:       submission.CaseID.String(),
 		Score:        finalScore,
 		TestCases:    testCases,

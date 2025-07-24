@@ -34,11 +34,21 @@ func (r submissionRepository) SaveResultsBatch(ctx context.Context, results []su
 	return r.db.WithContext(ctx).Create(&results).Error
 }
 
-func (r submissionRepository) FindAllForContest(ctx context.Context, caseIDs []uuid.UUID, userIDs []uuid.UUID, contestStartTime time.Time) ([]submissionModel.Submission, error) {
+func (r submissionRepository) FindAllForContest(ctx context.Context, contestId uuid.UUID, classId *uuid.UUID, contestStartTime time.Time) ([]submissionModel.Submission, error) {
 	var submissions []submissionModel.Submission
+	if classId == nil {
+		// If classId is nil, we want to find all submissions for the contest regardless of class
+		err := r.db.WithContext(ctx).
+			Where("contest_id = ?", contestId).
+			Where("class_transaction_id IS NULL").
+			Where("created_at >= ?", contestStartTime).
+			Order("created_at asc"). // IMPORTANT: Sort by time to process chronologically
+			Find(&submissions).Error
+		return submissions, err
+	}
 	err := r.db.WithContext(ctx).
-		Where("case_id IN ?", caseIDs).
-		Where("user_id IN ?", userIDs).
+		Where("contest_id = ?", contestId).
+		Where("class_transaction_id = ?", classId).
 		Where("created_at >= ?", contestStartTime).
 		Order("created_at asc"). // IMPORTANT: Sort by time to process chronologically
 		Find(&submissions).Error

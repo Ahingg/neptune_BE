@@ -26,6 +26,14 @@ func (h *ContestHandler) CreateContest(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	fmt.Println(req)
+
+	if req.Scope == "global" && (req.StartTime == nil || req.EndTime == nil) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "StartTime and EndTime are required for global contests"})
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
@@ -54,6 +62,31 @@ func (h *ContestHandler) GetContestByID(c *gin.Context) {
 	}
 	if resp == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Contest not found"})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (h *ContestHandler) GetAllGlobalContestWithoutDetail(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	resp, err := h.contestService.FindAllActiveGlobalContests(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to retrieve global contests: %v", err.Error())})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// GetAllGlobalContestDetail handles GET /api/contests/global
+func (h *ContestHandler) GetAllGlobalContestDetail(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	resp, err := h.contestService.FindAllActiveGlobalContestsDetail(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to retrieve global contest details: %v", err.Error())})
 		return
 	}
 	c.JSON(http.StatusOK, resp)

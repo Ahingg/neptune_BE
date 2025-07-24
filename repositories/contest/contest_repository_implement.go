@@ -39,6 +39,34 @@ func (r *contestRepositoryImpl) SaveContest(ctx context.Context, contest *contes
 	}).Create(contest).Error
 }
 
+func (r *contestRepositoryImpl) SaveGlobalContestDetail(ctx context.Context, detail *contestModel.GlobalContestDetail) error {
+	if detail.ContestID == uuid.Nil {
+		return fmt.Errorf("contest ID cannot be nil")
+	}
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "contest_id"}}, // Conflict on primary key (ContestID)
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"start_time": detail.StartTime,
+			"end_time":   detail.EndTime,
+		}),
+	}).Create(detail).Error
+
+}
+
+// FindAllGlobalContests retrieves all global contest details.
+func (r *contestRepositoryImpl) FindAllActiveGlobalContests(ctx context.Context) ([]contestModel.Contest, error) {
+	var details []contestModel.Contest
+	result := r.db.WithContext(ctx).
+		Preload("GlobalContestDetail").
+		Joins("JOIN global_contest_details ON global_contest_details.contest_id = contests.id").
+		Where("global_contest_details.start_time <= ? AND global_contest_details.end_time >= ?", time.Now(), time.Now()).
+		Find(&details)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to find all global contests: %w", result.Error)
+	}
+	return details, nil
+}
+
 func (r *contestRepositoryImpl) GetContestCaseByCaseID(ctx context.Context, contestID, caseID uuid.UUID) (*contestModel.ContestCase, error) {
 	var contestCase contestModel.ContestCase
 	result := r.db.WithContext(ctx).Preload("Case").Where("contest_id", contestID).Where("case_id", caseID).Find(&contestCase)
@@ -58,6 +86,7 @@ func (r *contestRepositoryImpl) GetContestCaseByCaseID(ctx context.Context, cont
 func (r *contestRepositoryImpl) FindContestByID(ctx context.Context, contestID uuid.UUID) (*contestModel.Contest, error) {
 	var contest contestModel.Contest
 	result := r.db.WithContext(ctx).
+		Preload("GlobalContestDetail").
 		Preload("ContestCases.Case"). // Preload join table, then the Case itself
 		Where("id = ?", contestID).
 		First(&contest)
@@ -191,6 +220,7 @@ func (r *contestRepositoryImpl) FindContestCases(ctx context.Context, contestID 
 	result := r.db.WithContext(ctx).
 		Preload("Case"). // Preload the Case details
 		Where("contest_id = ?", contestID).
+		Order("problem_code").
 		Find(&cases)
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to find cases for contest %s: %w", contestID.String(), result.Error)

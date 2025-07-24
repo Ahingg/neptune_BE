@@ -45,12 +45,25 @@ func NewContestService(contestRepo contestRepository.ContestRepository, caseRepo
 func (s *contestServiceImpl) CreateContest(ctx context.Context, req requests.CreateContestRequest) (*responses.ContestResponse, error) {
 	contest := &contestModel.Contest{
 		ID:          uuid.New(),
+		Scope:       req.Scope,
 		Name:        req.Name,
 		Description: req.Description,
 	}
 	if err := s.contestRepo.SaveContest(ctx, contest); err != nil {
 		return nil, fmt.Errorf("failed to create contest: %w", err)
 	}
+	if req.Scope == "global" {
+		// Create a global contest detail if scope is global
+		globalContestDetail := &contestModel.GlobalContestDetail{
+			ContestID: contest.ID,
+			StartTime: *req.StartTime,
+			EndTime:   *req.EndTime,
+		}
+		if err := s.contestRepo.SaveGlobalContestDetail(ctx, globalContestDetail); err != nil {
+			return nil, fmt.Errorf("failed to create global contest detail: %w", err)
+		}
+	}
+
 	return &responses.ContestResponse{
 		ID:          contest.ID,
 		Name:        contest.Name,
@@ -84,6 +97,7 @@ func (s *contestServiceImpl) GetContestByID(ctx context.Context, contestID uuid.
 				CaseID:        cc.Case.ID,
 				ProblemCode:   cc.ProblemCode,
 				Name:          cc.Case.Name,
+				Description:   cc.Case.Description,
 				TimeLimitMs:   cc.Case.TimeLimitMs,
 				MemoryLimitMb: cc.Case.MemoryLimitMb,
 				PDFFileUrl:    cc.Case.PDFFileUrl,
@@ -109,6 +123,45 @@ func (s *contestServiceImpl) GetAllContests(ctx context.Context) ([]responses.Co
 			Description: c.Description,
 			CreatedAt:   c.CreatedAt,
 			UpdatedAt:   c.UpdatedAt,
+		}
+	}
+	return resp, nil
+}
+
+func (s *contestServiceImpl) FindAllActiveGlobalContests(ctx context.Context) ([]responses.GlobalContestResponse, error) {
+	contests, err := s.contestRepo.FindAllActiveGlobalContests(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find active global contests: %w", err)
+	}
+
+	resp := make([]responses.GlobalContestResponse, len(contests))
+	for i, c := range contests {
+		resp[i] = responses.GlobalContestResponse{
+			ID:          c.ID,
+			Name:        c.Name,
+			Description: c.Description,
+			StartTime:   c.GlobalContestDetail.StartTime,
+			EndTime:     c.GlobalContestDetail.EndTime,
+		}
+	}
+	return resp, nil
+}
+
+// FindAllActiveGlobalContestsDetail retrieves all active global contest details.
+func (s *contestServiceImpl) FindAllActiveGlobalContestsDetail(ctx context.Context) ([]responses.GlobalContestDetailResponse, error) {
+	contests, err := s.contestRepo.FindAllActiveGlobalContests(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find active global contest details: %w", err)
+	}
+
+	resp := make([]responses.GlobalContestDetailResponse, len(contests))
+	for i, c := range contests {
+		resp[i] = responses.GlobalContestDetailResponse{
+			ID:          c.ID,
+			Name:        c.Name,
+			Description: c.Description,
+			StartTime:   c.GlobalContestDetail.StartTime,
+			EndTime:     c.GlobalContestDetail.EndTime,
 		}
 	}
 	return resp, nil

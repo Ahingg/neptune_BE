@@ -16,5 +16,12 @@ type Contest struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index"` // For soft deletes
 
 	// Many-to-many relationship with Case via ContestCase
-	ContestCases []ContestCase `gorm:"foreignKey:ContestID;references:ID"`
+	GlobalContestDetail *GlobalContestDetail `gorm:"foreignKey:ContestID;references:ID"`
+	ContestCases        []ContestCase        `gorm:"foreignKey:ContestID;references:ID"`
+}
+
+type GlobalContestDetail struct {
+	ContestID uuid.UUID `gorm:"primaryKey;type:uuid;"`
+	StartTime time.Time `gorm:"not null"` // Start time of the contest
+	EndTime   time.Time `gorm:"not null"` // End time of the contest
 }
