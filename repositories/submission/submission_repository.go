@@ -14,4 +14,5 @@ type SubmissionRepository interface {
 	SaveResultsBatch(ctx context.Context, results []submissionModel.SubmissionResult) error
 	FindAllForContest(ctx context.Context, caseIDs []uuid.UUID, userIDs []uuid.UUID, contestStartTime time.Time) ([]submissionModel.Submission, error)
 	FindByUserInContest(ctx context.Context, contestID uuid.UUID, userID uuid.UUID, classID *uuid.UUID) ([]submissionModel.Submission, error)
+	FindClassSubmissions(ctx context.Context, classID uuid.UUID, contestID uuid.UUID) ([]submissionModel.Submission, error)
 }

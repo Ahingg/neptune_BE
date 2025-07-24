@@ -58,6 +58,20 @@ func (r submissionRepository) FindByUserInContest(ctx context.Context, contestID
 	return submissions, err
 }
 
+func (r submissionRepository) FindClassSubmissions(ctx context.Context, classID uuid.UUID, contestID uuid.UUID) ([]submissionModel.Submission, error) {
+	var submissions []submissionModel.Submission
+	err := r.db.WithContext(ctx).
+		Where("class_transaction_id = ?", classID).
+		Where("contest_id = ?", contestID).
+		Order("created_at asc"). // Sort by time to process chronologically
+		Find(&submissions).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to find class submissions for class %s and contest %s: %w", classID.String(), contestID.String(), err)
+
+	}
+	return submissions, nil
+}
+
 func NewSubmissionRepository(db *gorm.DB) SubmissionRepository {
 	return &submissionRepository{db: db}
 }
