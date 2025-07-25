@@ -15,4 +15,5 @@ type SubmissionRepository interface {
 	FindAllForContest(ctx context.Context, contestId uuid.UUID, classId *uuid.UUID, contestStartTime time.Time) ([]submissionModel.Submission, error)
 	FindByUserInContest(ctx context.Context, contestID uuid.UUID, userID uuid.UUID, classID *uuid.UUID) ([]submissionModel.Submission, error)
 	FindClassSubmissions(ctx context.Context, classID uuid.UUID, contestID uuid.UUID) ([]submissionModel.Submission, error)
+	FindByStatus(ctx context.Context, status submissionModel.SubmissionStatus) ([]submissionModel.Submission, error)
 }

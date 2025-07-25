@@ -84,11 +84,11 @@ func (s *semesterService) GetInternalSemesters(ctx context.Context) ([]responses
 	log.Printf("Getting internal semesters from database")
 	semesters, err := s.semesterRepository.FindAll(ctx)
 	if err != nil {
-		log.Printf("Failed to retrieve semesters from internal DB: %v", err)
+		//log.Printf("Failed to retrieve semesters from internal DB: %v", err)
 		return nil, fmt.Errorf("failed to retrieve semesters from internal DB: %w", err)
 	}
 
-	log.Printf("Successfully retrieved %d semesters from internal DB", len(semesters))
+	//log.Printf("Successfully retrieved %d semesters from internal DB", len(semesters))
 
 	semResponses := make([]responses.SemesterResponse, len(semesters))
 	for i, sem := range semesters {
@@ -98,7 +98,7 @@ func (s *semesterService) GetInternalSemesters(ctx context.Context) ([]responses
 			Start:       sem.Start,
 			End:         sem.End, // This will be nil if End is not set in the DB
 		}
-		log.Printf("Semester %d: ID=%s, Description=%s", i+1, sem.ID, sem.Description)
+		//log.Printf("Semester %d: ID=%s, Description=%s", i+1, sem.ID, sem.Description)
 	}
 	return semResponses, nil
 }

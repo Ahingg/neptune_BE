@@ -58,12 +58,6 @@ func (h *SemesterHandler) GetSemestersHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to retrieve semesters: %v", err)})
 		return
 	}
-
-	fmt.Printf("Found %d semesters in database\n", len(semesters))
-	for i, s := range semesters {
-		fmt.Printf("Semester %d: ID=%s, Description=%s\n", i+1, s.SemesterID, s.Description)
-	}
-
 	// Transform model.Semester to your desired GetSemestersResponse format
 	// if needed, otherwise just send model.Semester array
 	responseSemesters := make([]responses.SemesterResponse, len(semesters))

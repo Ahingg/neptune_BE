@@ -13,28 +13,28 @@ type submissionRepository struct {
 	db *gorm.DB
 }
 
-func (r submissionRepository) Save(ctx context.Context, submission *submissionModel.Submission) error {
+func (r *submissionRepository) Save(ctx context.Context, submission *submissionModel.Submission) error {
 	return r.db.WithContext(ctx).Create(submission).Error
 }
 
-func (r submissionRepository) FindByID(ctx context.Context, id string) (*submissionModel.Submission, error) {
+func (r *submissionRepository) FindByID(ctx context.Context, id string) (*submissionModel.Submission, error) {
 	var submission submissionModel.Submission
 	err := r.db.WithContext(ctx).Preload("SubmissionResults").First(&submission, "id = ?", id).Error
 	return &submission, err
 }
 
-func (r submissionRepository) Update(ctx context.Context, submission *submissionModel.Submission) error {
+func (r *submissionRepository) Update(ctx context.Context, submission *submissionModel.Submission) error {
 	return r.db.WithContext(ctx).Save(submission).Error
 }
 
-func (r submissionRepository) SaveResultsBatch(ctx context.Context, results []submissionModel.SubmissionResult) error {
+func (r *submissionRepository) SaveResultsBatch(ctx context.Context, results []submissionModel.SubmissionResult) error {
 	if len(results) == 0 {
 		return nil
 	}
 	return r.db.WithContext(ctx).Create(&results).Error
 }
 
-func (r submissionRepository) FindAllForContest(ctx context.Context, contestId uuid.UUID, classId *uuid.UUID, contestStartTime time.Time) ([]submissionModel.Submission, error) {
+func (r *submissionRepository) FindAllForContest(ctx context.Context, contestId uuid.UUID, classId *uuid.UUID, contestStartTime time.Time) ([]submissionModel.Submission, error) {
 	var submissions []submissionModel.Submission
 	if classId == nil {
 		// If classId is nil, we want to find all submissions for the contest regardless of class
@@ -55,7 +55,7 @@ func (r submissionRepository) FindAllForContest(ctx context.Context, contestId u
 	return submissions, err
 }
 
-func (r submissionRepository) FindByUserInContest(ctx context.Context, contestID uuid.UUID, userID uuid.UUID, classID *uuid.UUID) ([]submissionModel.Submission, error) {
+func (r *submissionRepository) FindByUserInContest(ctx context.Context, contestID uuid.UUID, userID uuid.UUID, classID *uuid.UUID) ([]submissionModel.Submission, error) {
 	var submissions []submissionModel.Submission
 	classQuery := "class_transaction_id IS NOT NULL"
 	if classID == nil {
@@ -68,7 +68,7 @@ func (r submissionRepository) FindByUserInContest(ctx context.Context, contestID
 	return submissions, err
 }
 
-func (r submissionRepository) FindClassSubmissions(ctx context.Context, classID uuid.UUID, contestID uuid.UUID) ([]submissionModel.Submission, error) {
+func (r *submissionRepository) FindClassSubmissions(ctx context.Context, classID uuid.UUID, contestID uuid.UUID) ([]submissionModel.Submission, error) {
 	var submissions []submissionModel.Submission
 	err := r.db.WithContext(ctx).
 		Where("class_transaction_id = ?", classID).
@@ -82,6 +82,11 @@ func (r submissionRepository) FindClassSubmissions(ctx context.Context, classID 
 	return submissions, nil
 }
 
+func (r *submissionRepository) FindByStatus(ctx context.Context, status submissionModel.SubmissionStatus) ([]submissionModel.Submission, error) {
+	var submissions []submissionModel.Submission
+	err := r.db.WithContext(ctx).Where("status = ?", status).Find(&submissions).Error
+	return submissions, err
+}
 func NewSubmissionRepository(db *gorm.DB) SubmissionRepository {
 	return &submissionRepository{db: db}
 }
