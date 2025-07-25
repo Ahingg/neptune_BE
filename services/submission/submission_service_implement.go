@@ -160,6 +160,10 @@ func (s *submissionService) GetClassContestSubmissions(ctx context.Context, clas
 }
 
 func (s *submissionService) StartListeners() error {
+	// --- FIX: Re-queue stuck submissions on startup ---
+	go s.requeueStuckSubmissions(context.Background())
+	// --------------------------------------------------
+
 	_, err := s.rabbitChannel.QueueDeclare(amqp_messages.JudgeQueueName, true, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("failed to declare judge queue: %w", err)
@@ -200,6 +204,51 @@ func (s *submissionService) StartListeners() error {
 	return nil
 }
 
+// requeueStuckSubmissions finds submissions with a "Judging" status and republishes them.
+func (s *submissionService) requeueStuckSubmissions(ctx context.Context) {
+	log.Println("Checking for stuck submissions to re-queue...")
+
+	// 1. Find all submissions that are stuck in the "Judging" state.
+	stuckSubmissions, err := s.submissionRepository.FindByStatus(ctx, submissionModel.SubmissionStatusJudging)
+	if err != nil {
+		log.Printf("Error fetching stuck submissions: %v", err)
+		return
+	}
+
+	if len(stuckSubmissions) == 0 {
+		log.Println("No stuck submissions found.")
+		return
+	}
+
+	log.Printf("Found %d stuck submissions. Re-queueing now...", len(stuckSubmissions))
+
+	// 2. Loop through them and republish a job for each one.
+	for _, submission := range stuckSubmissions {
+		msgBody, err := json.Marshal(amqp_messages.JudgeQueueMessage{SubmissionID: submission.ID})
+		if err != nil {
+			log.Printf("Error marshalling message for stuck submission %s: %v", submission.ID, err)
+			continue // Skip to the next one
+		}
+
+		err = s.rabbitChannel.PublishWithContext(
+			ctx,
+			"",                           // exchange
+			amqp_messages.JudgeQueueName, // routing key
+			false,                        // mandatory
+			false,                        // immediate
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        msgBody,
+			},
+		)
+
+		if err != nil {
+			log.Printf("Failed to re-queue submission %s: %v", submission.ID, err)
+		} else {
+			log.Printf("Successfully re-queued submission %s", submission.ID)
+		}
+	}
+}
 func (s *submissionService) processSubmissionJob(ctx context.Context, d amqp.Delivery) {
 	defer d.Ack(false) // Acknowledge message when done
 
