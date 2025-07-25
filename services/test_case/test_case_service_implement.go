@@ -76,9 +76,9 @@ func (s testcaseServiceImpl) UploadTestCases(ctx context.Context, req requests.A
 
 		// Identify input/output files regardless of their original names
 		var itemType string
-		if strings.Contains(strings.ToLower(filename), "input") {
+		if strings.Contains(strings.ToLower(filename), ".in") {
 			itemType = "input.in" // Standardized name for input
-		} else if strings.Contains(strings.ToLower(filename), "output") {
+		} else if strings.Contains(strings.ToLower(filename), ".out") {
 			itemType = "output.out" // Standardized name for output
 		} else {
 			// Skip files that are not clearly input or output
